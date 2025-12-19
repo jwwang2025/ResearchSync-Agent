@@ -27,12 +27,11 @@ class OpenAILLM(BaseLLM):
             **kwargs: Additional configuration
         """
         super().__init__(api_key, model, **kwargs)
-        # Create httpx client with timeout configuration
-        http_client = httpx.Client(
-            timeout=httpx.Timeout(timeout, connect=30.0)
-        )
+        # Use timeout configuration matching DeepSeek implementation
+        # Set connect timeout to 30s and read timeout to 120s for better reliability
+        timeout_config = httpx.Timeout(30.0, read=120.0)
         # Use base_url if provided (for proxy), otherwise use default OpenAI API
-        client_kwargs = {"api_key": api_key, "http_client": http_client}
+        client_kwargs = {"api_key": api_key, "timeout": timeout_config}
         if base_url:
             client_kwargs["base_url"] = base_url
         self.client = OpenAI(**client_kwargs)
