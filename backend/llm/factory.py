@@ -68,6 +68,8 @@ class LLMFactory:
         llm_class = cls._providers[provider]
 
         # Create instance with or without model parameter
+        # Note: base_url is only used by OpenAILLM for proxy support
+        # Other providers (claude, gemini, deepseek) will ignore base_url via **kwargs
         if model:
             return llm_class(api_key=api_key, model=model, **kwargs)
         else:

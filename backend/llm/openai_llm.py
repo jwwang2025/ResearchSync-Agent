@@ -14,17 +14,22 @@ class OpenAILLM(BaseLLM):
     Supports GPT-4, GPT-3.5-turbo, and other OpenAI models.
     """
 
-    def __init__(self, api_key: str, model: str = "gpt-4", **kwargs):
+    def __init__(self, api_key: str, model: str = "gpt-4", base_url: str = None, **kwargs):
         """
         Initialize OpenAI LLM.
 
         Args:
             api_key: OpenAI API key
             model: Model name (default: gpt-4)
+            base_url: API base URL for proxy (optional)
             **kwargs: Additional configuration
         """
         super().__init__(api_key, model, **kwargs)
-        self.client = OpenAI(api_key=api_key)
+        # Use base_url if provided (for proxy), otherwise use default OpenAI API
+        client_kwargs = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        self.client = OpenAI(**client_kwargs)
 
     def generate(self, prompt: str, **kwargs) -> str:
         """

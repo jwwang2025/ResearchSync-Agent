@@ -15,6 +15,7 @@ class LLMConfig(BaseModel):
     provider: str = Field(default="deepseek", description="LLM provider")
     model: Optional[str] = Field(default=None, description="Model name")
     api_key: str = Field(..., description="API key")
+    base_url: Optional[str] = Field(default=None, description="API base URL (for proxy)")
     temperature: float = Field(default=0.7, description="Temperature")
     max_tokens: Optional[int] = Field(default=None, description="Max tokens")
 
@@ -54,24 +55,39 @@ def load_config_from_env() -> Config:
     llm_provider = os.getenv("LLM_PROVIDER", "deepseek").lower()
 
     # Map provider to API key environment variable
+    # Note: Using CLAUDE_API_KEY and GEMINI_API_KEY to match user configuration
     api_key_map = {
         "openai": "OPENAI_API_KEY",
-        "claude": "ANTHROPIC_API_KEY",
-        "gemini": "GOOGLE_API_KEY",
+        "claude": "CLAUDE_API_KEY",  # Also supports ANTHROPIC_API_KEY for compatibility
+        "gemini": "GEMINI_API_KEY",  # Also supports GOOGLE_API_KEY for compatibility
         "deepseek": "DEEPSEEK_API_KEY"
     }
 
     api_key_env = api_key_map.get(llm_provider, "OPENAI_API_KEY")
     llm_api_key = os.getenv(api_key_env)
+    
+    # Fallback for compatibility: try alternative env var names
+    if not llm_api_key:
+        if llm_provider == "claude":
+            llm_api_key = os.getenv("ANTHROPIC_API_KEY")
+        elif llm_provider == "gemini":
+            llm_api_key = os.getenv("GOOGLE_API_KEY")
 
     if not llm_api_key:
         raise ValueError(f"API key not found for {llm_provider}. Please set {api_key_env} in .env file")
 
+    # Get API base URL for proxy (only for OpenAI, if configured)
+    # Other providers (claude, gemini, deepseek) don't need proxy configuration
+    base_url = None
+    if llm_provider == "openai":
+        base_url = os.getenv("OPENAI_API_BASE")  # Optional: for proxy support
+    
     # Create LLM config
     llm_config = LLMConfig(
         provider=llm_provider,
         model=os.getenv("LLM_MODEL"),
         api_key=llm_api_key,
+        base_url=base_url,
         temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
         max_tokens=int(os.getenv("LLM_MAX_TOKENS")) if os.getenv("LLM_MAX_TOKENS") else None
     )
