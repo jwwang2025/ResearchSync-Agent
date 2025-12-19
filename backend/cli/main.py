@@ -9,6 +9,7 @@ This module provides the command-line interface for the research system.
 
 import click
 from pathlib import Path
+from typing import Dict, Any, Tuple
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
@@ -24,6 +25,59 @@ from ..agents.rapporteur import Rapporteur
 from ..workflow.graph import ResearchWorkflow
 
 console = Console()
+
+
+def human_approval_callback(state: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    人在闭环审批回调函数
+
+    Args:
+        state: 当前工作流状态
+
+    Returns:
+        (approved: bool, feedback: str) - 是否批准和用户反馈
+    """
+    console.print("\n")
+    console.print(Panel.fit(
+        "[bold yellow]等待您的决策[/bold yellow]",
+        border_style="yellow"
+    ))
+    console.print("\n[cyan]您可以选择：[/cyan]")
+    console.print("  [green]1.[/green] 批准计划 - 开始执行研究")
+    console.print("  [green]2.[/green] 拒绝计划 - 提供反馈重新制定")
+    console.print("  [green]3.[/green] 取消任务 - 退出研究")
+    console.print()
+
+    choice = click.prompt("请选择操作", type=click.Choice(['1', '2', '3']), default='1')
+
+    if choice == "1":
+        # 批准计划
+        print_success("计划已批准，开始研究...")
+        return True, None
+
+    elif choice == "2":
+        # 拒绝并提供反馈
+        console.print("\n[yellow]请提供修改意见（描述您希望如何调整研究计划）：[/yellow]")
+        console.print("[dim]提示：您可以要求增加/删除某些研究方向，调整优先级等[/dim]\n")
+
+        feedback = click.prompt("修改意见", type=str, default="请重新优化研究计划")
+
+        if not feedback:
+            console.print("[yellow]未提供反馈，将重新生成计划...[/yellow]")
+            feedback = "请重新优化研究计划"
+
+        print_info("已收到反馈，正在重新制定计划...")
+        return False, feedback
+
+    elif choice == "3":
+        # 取消任务
+        console.print("\n[yellow]任务已取消[/yellow]")
+        raise KeyboardInterrupt("用户取消任务")
+
+    else:
+        # 无效选择，默认拒绝
+        print_error("无效选择，请重新决策")
+        return human_approval_callback(state)
 
 
 def interactive_menu():
@@ -262,7 +316,16 @@ def research(query, config, output, max_iterations, auto_approve, llm_provider, 
         print_step("开始研究...\n")
 
         current_state = None
-        for state_update in workflow.stream(query, cfg.workflow.max_iterations, auto_approve=cfg.workflow.auto_approve_plan):
+        
+        # Use stream_interactive to handle interrupts properly
+        stream_iter = workflow.stream_interactive(
+            query,
+            cfg.workflow.max_iterations,
+            auto_approve=cfg.workflow.auto_approve_plan,
+            human_approval_callback=human_approval_callback if not cfg.workflow.auto_approve_plan else None
+        )
+
+        for state_update in stream_iter:
             for node_name, state in state_update.items():
                 # Handle both dict and tuple states (LangGraph may return tuple)
                 if isinstance(state, tuple):
@@ -280,6 +343,11 @@ def research(query, config, output, max_iterations, auto_approve, llm_provider, 
                 
                 step = current_state.get('current_step', 'unknown')
 
+                # Check for simple response (greeting/inappropriate query)
+                if current_state.get('simple_response'):
+                    console.print(f"\n{current_state['simple_response']}\n")
+                    continue
+
                 # Display step updates
                 if step == 'planning':
                     print_info("正在创建研究计划...")
@@ -289,14 +357,9 @@ def research(query, config, output, max_iterations, auto_approve, llm_provider, 
                         console.print(Panel(plan_display, title="研究计划", border_style="blue"))
 
                 elif step == 'awaiting_approval':
-                    if not cfg.workflow.auto_approve_plan:
-                        print_info("计划需要您的批准")
-                        # Note: Interactive approval not currently supported in streaming mode
-                        # For now, user must use --auto-approve flag or set AUTO_APPROVE_PLAN in .env
-                        print_error("交互式批准暂不支持，请使用 --auto-approve 或在 .env 中设置 AUTO_APPROVE_PLAN=true")
-                        return
-                    else:
+                    if cfg.workflow.auto_approve_plan:
                         print_success("计划已自动批准")
+                    # Interactive approval is handled by the callback in stream_interactive
 
                 elif step == 'researching':
                     task = current_state.get('current_task', {})
@@ -329,6 +392,9 @@ def research(query, config, output, max_iterations, auto_approve, llm_provider, 
             rapporteur.save_report(report, str(output))
             print_success(f"报告已保存至：{output}")
 
+        elif current_state and current_state.get('simple_response'):
+            # Simple query was handled, no need to show error
+            pass
         else:
             print_error("研究未成功完成")
 
