@@ -1,7 +1,7 @@
 """
-Configuration Management
+配置管理
 
-This module handles configuration loading and management.
+该模块负责配置的加载与管理工作。
 """
 
 import os
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 
 class LLMConfig(BaseModel):
-    """LLM configuration."""
+    """LLM 配置。"""
     provider: str = Field(default="deepseek", description="LLM provider")
     model: Optional[str] = Field(default=None, description="Model name")
     api_key: str = Field(..., description="API key")
@@ -21,21 +21,21 @@ class LLMConfig(BaseModel):
 
 
 class SearchConfig(BaseModel):
-    """Search tools configuration."""
+    """搜索工具配置。"""
     tavily_api_key: Optional[str] = Field(default=None, description="Tavily API key")
     mcp_server_url: Optional[str] = Field(default=None, description="MCP server URL")
     mcp_api_key: Optional[str] = Field(default=None, description="MCP API key")
 
 
 class WorkflowConfig(BaseModel):
-    """Workflow configuration."""
+    """工作流配置。"""
     max_iterations: int = Field(default=5, description="Maximum research iterations")
     auto_approve_plan: bool = Field(default=False, description="Auto-approve research plan")
     output_dir: str = Field(default="./outputs", description="Output directory for reports")
 
 
 class Config(BaseModel):
-    """Main configuration."""
+    """主配置。"""
     llm: LLMConfig
     search: SearchConfig
     workflow: WorkflowConfig
@@ -43,30 +43,30 @@ class Config(BaseModel):
 
 def load_config_from_env() -> Config:
     """
-    Load configuration from environment variables.
+    从环境变量加载配置。
 
-    Returns:
-        Config instance
+    返回:
+        Config 实例
     """
-    # Load .env file
+    # 加载 .env 文件
     load_dotenv()
 
-    # Get LLM provider and determine API key
+    # 获取 LLM 提供商并确定 API 密钥
     llm_provider = os.getenv("LLM_PROVIDER", "deepseek").lower()
 
-    # Map provider to API key environment variable
-    # Note: Using CLAUDE_API_KEY and GEMINI_API_KEY to match user configuration
+    # 将提供商映射到 API 密钥环境变量
+    # 注意：使用 CLAUDE_API_KEY 和 GEMINI_API_KEY 以匹配用户配置
     api_key_map = {
         "openai": "OPENAI_API_KEY",
-        "claude": "CLAUDE_API_KEY",  # Also supports ANTHROPIC_API_KEY for compatibility
-        "gemini": "GEMINI_API_KEY",  # Also supports GOOGLE_API_KEY for compatibility
+        "claude": "CLAUDE_API_KEY",  # 为兼容性也支持 ANTHROPIC_API_KEY
+        "gemini": "GEMINI_API_KEY",  # 为兼容性也支持 GOOGLE_API_KEY
         "deepseek": "DEEPSEEK_API_KEY"
     }
 
     api_key_env = api_key_map.get(llm_provider, "OPENAI_API_KEY")
     llm_api_key = os.getenv(api_key_env)
     
-    # Fallback for compatibility: try alternative env var names
+    # 兼容性回退：尝试替代的环境变量名称
     if not llm_api_key:
         if llm_provider == "claude":
             llm_api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -76,13 +76,13 @@ def load_config_from_env() -> Config:
     if not llm_api_key:
         raise ValueError(f"API key not found for {llm_provider}. Please set {api_key_env} in .env file")
 
-    # Get API base URL for proxy (only for OpenAI, if configured)
-    # Other providers (claude, gemini, deepseek) don't need proxy configuration
+    # 获取 API 基础 URL（仅用于代理，仅当配置了 OpenAI 时）
+    # 其他提供商（claude、gemini、deepseek）不需要代理配置
     base_url = None
     if llm_provider == "openai":
-        base_url = os.getenv("OPENAI_API_BASE")  # Optional: for proxy support
+        base_url = os.getenv("OPENAI_API_BASE")  # 可选：用于代理支持
     
-    # Create LLM config
+    # 创建 LLM 配置
     llm_config = LLMConfig(
         provider=llm_provider,
         model=os.getenv("LLM_MODEL"),
@@ -92,14 +92,14 @@ def load_config_from_env() -> Config:
         max_tokens=int(os.getenv("LLM_MAX_TOKENS")) if os.getenv("LLM_MAX_TOKENS") else None
     )
 
-    # Create search config
+    # 创建搜索配置
     search_config = SearchConfig(
         tavily_api_key=os.getenv("TAVILY_API_KEY"),
         mcp_server_url=os.getenv("MCP_SERVER_URL"),
         mcp_api_key=os.getenv("MCP_API_KEY")
     )
 
-    # Create workflow config
+    # 创建工作流配置
     workflow_config = WorkflowConfig(
         max_iterations=int(os.getenv("MAX_ITERATIONS", "5")),
         auto_approve_plan=os.getenv("AUTO_APPROVE_PLAN", "false").lower() == "true",
@@ -115,14 +115,14 @@ def load_config_from_env() -> Config:
 
 def save_config_to_file(config: Config, filepath: str) -> bool:
     """
-    Save configuration to a file.
+    将配置保存到文件。
 
-    Args:
-        config: Configuration instance
-        filepath: Path to save the config
+    参数:
+        config: 配置实例
+        filepath: 保存配置的路径
 
-    Returns:
-        True if successful
+    返回:
+        成功返回 True
     """
     try:
         with open(filepath, 'w') as f:
@@ -135,13 +135,13 @@ def save_config_to_file(config: Config, filepath: str) -> bool:
 
 def load_config_from_file(filepath: str) -> Config:
     """
-    Load configuration from a file.
+    从文件加载配置。
 
-    Args:
-        filepath: Path to the config file
+    参数:
+        filepath: 配置文件路径
 
-    Returns:
-        Config instance
+    返回:
+        Config 实例
     """
     import json
 
@@ -153,10 +153,10 @@ def load_config_from_file(filepath: str) -> Config:
 
 def get_default_config() -> Dict[str, Any]:
     """
-    Get default configuration values.
+    获取默认配置值。
 
-    Returns:
-        Dictionary of default config
+    返回:
+        默认配置字典
     """
     return {
         "llm": {

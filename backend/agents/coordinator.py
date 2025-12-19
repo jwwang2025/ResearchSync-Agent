@@ -1,8 +1,8 @@
 """
 Coordinator Agent
 
-This module implements the Coordinator agent, which serves as the entry point
-and orchestrator for the research workflow.
+该模块实现了协调器智能体（Coordinator agent），它是
+研究工作流的入口节点与调度中枢。
 """
 
 from typing import Dict, Optional, Any
@@ -14,14 +14,15 @@ class Coordinator:
     """
     Coordinator agent - the entry point for research workflow.
 
-    Responsibilities:
-    - Receive user research requests
-    - Classify query type (greeting, inappropriate, or research)
-    - Handle simple queries directly (greetings, inappropriate requests)
-    - Initialize research workflow state for complex queries
-    - Delegate research tasks to the Planner
-    - Manage user-system interaction
-    - Handle workflow lifecycle
+    协调器智能体（Coordinator agent）—— 研究工作流的入口节点
+    职责说明：
+    -接收用户的研究需求
+    -对查询类型进行分类（问候类、不当内容类、研究类(greeting, inappropriate, or research)）
+    -直接处理简单查询 (问候类、不当内容类请求 (greetings, inappropriate requests)）
+    -针对复杂查询，初始化研究工作流的状态
+    -将研究任务委派给规划器（Planner）
+    -管理用户与系统的交互过程
+    -负责工作流的全生命周期管理
     """
 
     def __init__(self, llm: BaseLLM):

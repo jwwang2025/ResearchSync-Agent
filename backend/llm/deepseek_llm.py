@@ -5,6 +5,7 @@ DeepSeek uses OpenAI-compatible API, so we can use the OpenAI client.
 """
 
 from typing import Iterator
+import httpx
 from openai import OpenAI
 from .base import BaseLLM
 
@@ -21,6 +22,7 @@ class DeepSeekLLM(BaseLLM):
         api_key: str,
         model: str = "deepseek-chat",
         base_url: str = "https://api.deepseek.com",
+        timeout: float = 60.0,
         **kwargs
     ):
         """
@@ -30,12 +32,18 @@ class DeepSeekLLM(BaseLLM):
             api_key: DeepSeek API key
             model: Model name (default: deepseek-chat)
             base_url: API base URL (default: https://api.deepseek.com)
+            timeout: Request timeout in seconds (default: 60.0)
             **kwargs: Additional configuration
         """
         super().__init__(api_key, model, **kwargs)
+        # Create httpx client with timeout configuration
+        http_client = httpx.Client(
+            timeout=httpx.Timeout(timeout, connect=30.0)
+        )
         self.client = OpenAI(
             api_key=api_key,
-            base_url=base_url
+            base_url=base_url,
+            http_client=http_client
         )
 
     def generate(self, prompt: str, **kwargs) -> str:

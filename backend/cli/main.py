@@ -176,7 +176,7 @@ def interactive_menu():
 @click.version_option(version="0.1.0")
 def cli(ctx):
     """
-    SDYJ 深度研究 - 基于 LangGraph 的多智能体研究系统。
+    ResearchSync-Agent - 基于 LangGraph 的多智能体研究系统。
     """
     if ctx.invoked_subcommand is None:
         # No subcommand provided, show interactive menu
@@ -202,7 +202,7 @@ def research(query, config, output, max_iterations, auto_approve, llm_provider, 
 
     # Display banner
     console.print(Panel.fit(
-        "[bold cyan]SDYJ 深度研究系统[/bold cyan]\n"
+        "[bold cyan]ResearchSync-Agent[/bold cyan]\n"
         "[dim]基于 LangGraph 的多智能体研究系统[/dim]",
         border_style="cyan"
     ))

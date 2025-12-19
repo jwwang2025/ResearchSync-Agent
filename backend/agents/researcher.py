@@ -1,8 +1,7 @@
 """
 Researcher Agent
 
-This module implements the Researcher agent, which is responsible for
-executing information retrieval tasks.
+该模块实现了研究者智能体（Researcher agent），负责执行信息检索任务。
 """
 
 from typing import Dict, List, Optional

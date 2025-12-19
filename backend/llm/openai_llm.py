@@ -3,6 +3,7 @@ OpenAI LLM Implementation
 """
 
 from typing import Iterator
+import httpx
 from openai import OpenAI
 from .base import BaseLLM
 
@@ -14,7 +15,7 @@ class OpenAILLM(BaseLLM):
     Supports GPT-4, GPT-3.5-turbo, and other OpenAI models.
     """
 
-    def __init__(self, api_key: str, model: str = "gpt-4", base_url: str = None, **kwargs):
+    def __init__(self, api_key: str, model: str = "gpt-4", base_url: str = None, timeout: float = 60.0, **kwargs):
         """
         Initialize OpenAI LLM.
 
@@ -22,11 +23,16 @@ class OpenAILLM(BaseLLM):
             api_key: OpenAI API key
             model: Model name (default: gpt-4)
             base_url: API base URL for proxy (optional)
+            timeout: Request timeout in seconds (default: 60.0)
             **kwargs: Additional configuration
         """
         super().__init__(api_key, model, **kwargs)
+        # Create httpx client with timeout configuration
+        http_client = httpx.Client(
+            timeout=httpx.Timeout(timeout, connect=30.0)
+        )
         # Use base_url if provided (for proxy), otherwise use default OpenAI API
-        client_kwargs = {"api_key": api_key}
+        client_kwargs = {"api_key": api_key, "http_client": http_client}
         if base_url:
             client_kwargs["base_url"] = base_url
         self.client = OpenAI(**client_kwargs)
