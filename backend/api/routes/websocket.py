@@ -11,7 +11,7 @@ import asyncio
 from datetime import datetime
 
 from ..models.research import ResearchStatus, PlanApprovalRequest
-from .research import tasks_store, create_workflow
+from .research import tasks_store, create_workflow, persist_task
 
 router = APIRouter()
 
@@ -67,6 +67,8 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
         task = tasks_store[task_id]
         task["status"] = ResearchStatus.PLANNING
         task["updated_at"] = datetime.now()
+        # 持久化任务状态
+        persist_task(task_id)
 
         # 发送状态更新
         await manager.send_message(task_id, {
@@ -85,6 +87,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
         # 保存工作流和配置（用于后续审批）
         task["workflow"] = workflow
         task["config"] = cfg
+        persist_task(task_id)
 
         # 运行工作流（流式）
         max_iterations = request_data.get("max_iterations", 5)
@@ -123,6 +126,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                     approval_pending = True
                     task["status"] = ResearchStatus.AWAITING_APPROVAL
                     task["updated_at"] = datetime.now()
+                    persist_task(task_id)
 
                     await manager.send_message(task_id, {
                         "type": "plan_ready",
@@ -139,6 +143,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                 elif step == 'researching':
                     task["status"] = ResearchStatus.RESEARCHING
                     task["updated_at"] = datetime.now()
+                    persist_task(task_id)
 
                     await manager.send_message(task_id, {
                         "type": "progress",
@@ -153,6 +158,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                 elif step == 'generating_report':
                     task["status"] = ResearchStatus.GENERATING_REPORT
                     task["updated_at"] = datetime.now()
+                    persist_task(task_id)
 
                     await manager.send_message(task_id, {
                         "type": "status_update",
@@ -165,6 +171,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
         if current_state and current_state.get('final_report'):
             task["status"] = ResearchStatus.COMPLETED
             task["updated_at"] = datetime.now()
+            persist_task(task_id)
 
             await manager.send_message(task_id, {
                 "type": "report_ready",
@@ -175,6 +182,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
         else:
             task["status"] = ResearchStatus.FAILED
             task["updated_at"] = datetime.now()
+            persist_task(task_id)
 
             await manager.send_message(task_id, {
                 "type": "error",
@@ -185,6 +193,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
     except Exception as e:
         task["status"] = ResearchStatus.FAILED
         task["updated_at"] = datetime.now()
+        persist_task(task_id)
 
         await manager.send_message(task_id, {
             "type": "error",

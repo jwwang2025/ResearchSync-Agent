@@ -10,6 +10,80 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 from .routes import research, tasks, websocket, config
+import os
+import asyncio
+import json
+
+
+# Redis pub/sub: 在应用启动时订阅 worker 发布的任务更新并转发到 WebSocket manager
+@app.on_event("startup")
+async def startup_redis_pubsub():
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        return
+
+    try:
+        # 使用 redis.asyncio 作为异步客户端
+        import redis.asyncio as aioredis
+    except Exception:
+        # 如果没有异步 redis，跳过订阅（在非生产环境可能不可用）
+        return
+
+    app.state._redis = aioredis.from_url(redis_url)
+    pubsub = app.state._redis.pubsub()
+
+    async def _listener():
+        await pubsub.psubscribe("tasks:updates:*")
+        try:
+            while True:
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message:
+                    try:
+                        # message example: {'type': 'pmessage', 'pattern': b'tasks:updates:*', 'channel': b'tasks:updates:<id>', 'data': b'...'}
+                        channel = message.get("channel")
+                        data = message.get("data")
+                        if isinstance(channel, (bytes, bytearray)):
+                            channel = channel.decode()
+                        if isinstance(data, (bytes, bytearray)):
+                            data = data.decode()
+                        payload = json.loads(data) if data else {}
+                        # extract task_id from channel name
+                        parts = channel.split(":")
+                        task_id = parts[-1] if parts else None
+                        if task_id:
+                            # 延迟导入 manager，避免循环依赖
+                            from .routes.websocket import manager
+                            # 转发到 WebSocket 连接
+                            await manager.send_message(task_id, {"type": "redis_update", "task_id": task_id, "payload": payload})
+                    except Exception:
+                        # 忽略单条消息处理错误，继续循环
+                        pass
+                await asyncio.sleep(0.01)
+        finally:
+            try:
+                await pubsub.punsubscribe("tasks:updates:*")
+            except Exception:
+                pass
+
+    app.state._redis_listener_task = asyncio.create_task(_listener())
+
+
+@app.on_event("shutdown")
+async def shutdown_redis_pubsub():
+    # 关闭订阅和连接
+    try:
+        task = getattr(app.state, "_redis_listener_task", None)
+        if task:
+            task.cancel()
+            await asyncio.sleep(0)  # allow cancellation
+    except Exception:
+        pass
+    try:
+        conn = getattr(app.state, "_redis", None)
+        if conn:
+            await conn.close()
+    except Exception:
+        pass
 
 # 创建 FastAPI 应用
 app = FastAPI(

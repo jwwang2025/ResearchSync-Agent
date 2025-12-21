@@ -1,0 +1,22 @@
+{
+  "llm": {
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "api_key": "",
+    "base_url": null,
+    "temperature": 0.7,
+    "max_tokens": null
+  },
+  "search": {
+    "tavily_api_key": null,
+    "mcp_server_url": null,
+    "mcp_api_key": null
+  },
+  "workflow": {
+    "max_iterations": 5,
+    "auto_approve_plan": false,
+    "output_dir": "./outputs"
+  }
+}
+
+

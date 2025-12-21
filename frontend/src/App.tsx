@@ -8,6 +8,7 @@ import React from 'react';
 import { Layout, Typography } from 'antd';
 import { ResearchForm } from './components/Research/ResearchForm';
 import { ResearchProgress } from './components/Research/ResearchProgress';
+import { ResearchWSExample } from './components/Research/ResearchWSExample';
 import { useWebSocket } from './hooks/useWebSocket';
 import { researchApi } from './services/api';
 import type { ResearchRequest, ProgressMessage, PlanReadyMessage, ReportReadyMessage } from './types/research';
@@ -120,6 +121,9 @@ function App() {
             )}
           </div>
         )}
+        <div style={{ marginTop: 24 }}>
+          <ResearchWSExample />
+        </div>
       </Content>
     </Layout>
   );

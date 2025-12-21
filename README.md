@@ -123,6 +123,96 @@ AUTO_APPROVE_PLAN=false
 OUTPUT_DIR=./outputs
 ```
 
+## Docker & 部署 示例
+
+下面给出一个简单的 Docker Compose 示例（已包含在仓库根目录 `docker-compose.yml`），用于在本地快速启动 API、Redis 和 RQ worker：
+
+```bash
+# 构建并启动服务（会启动 redis、api、worker）
+docker-compose up --build
+```
+
+API 将在 `http://localhost:8000` 启动，WebSocket 端点示例：`ws://localhost:8000/ws/research/{task_id}`。
+
+## WebSocket 客户端 示例（前端/调试用）
+
+当你通过 POST 创建任务（`POST /api/v1/research/start`），会返回 `task_id`。前端可以用下面的简单 JS 代码连接 WebSocket 并接收实时更新：
+
+```javascript
+const taskId = "<TASK_ID_FROM_API>";
+const ws = new WebSocket(`ws://localhost:8000/ws/research/${taskId}`);
+
+ws.onopen = () => {
+  console.log("connected");
+};
+
+ws.onmessage = (evt) => {
+  const msg = JSON.parse(evt.data);
+  console.log("ws message:", msg);
+  // 如果收到 plan_ready，需要发送审批消息：
+  // ws.send(JSON.stringify({ type: "approve_plan", approved: true }));
+};
+
+ws.onclose = () => {
+  console.log("closed");
+};
+```
+
+## 配置文件示例 & API 使用示例
+
+项目根已提供 `config.example.json`，可复制为 `config.json` 或在 `.env` 中设置对应环境变量。以下为 `config.example.json` 的结构示例（仓库中已有文件 `config.example.json`）：
+
+```json
+{
+  "llm": {
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "api_key": "",
+    "base_url": null,
+    "temperature": 0.7,
+    "max_tokens": null
+  },
+  "search": {
+    "tavily_api_key": null,
+    "mcp_server_url": null,
+    "mcp_api_key": null
+  },
+  "workflow": {
+    "max_iterations": 5,
+    "auto_approve_plan": false,
+    "output_dir": "./outputs"
+  }
+}
+```
+
+基本 API 使用示例（curl）：
+
+- 创建研究任务（返回 task_id）：
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/research/start" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"研究量子计算在化学模拟中的应用","max_iterations":5,"auto_approve":false}'
+```
+
+- 查询任务状态：
+
+```bash
+curl "http://localhost:8000/api/v1/research/<TASK_ID>"
+```
+
+- 更新运行时配置（PUT，将持久化为 `config.json`）：
+
+```bash
+curl -X PUT "http://localhost:8000/api/v1/config" \
+  -H "Content-Type: application/json" \
+  -d '{"workflow": {"max_iterations": 7, "auto_approve_plan": true}}'
+```
+
+说明：
+- 使用 `POST /api/v1/research/start` 后，会返回 `task_id`，前端应连接 `ws://.../ws/research/{task_id}` 以接收实时更新与审批交互。
+- 若启用了 Redis（在环境变量 `REDIS_URL` 中设置），任务将入队至 RQ worker；worker 会通过 Redis Pub/Sub 发布进度，API 会将其转发到已连接的 WebSocket 客户端。
+
 ## 文档
 
 - [架构设计文档](./ARCHITECTURE.md) - 前后端分离架构详细设计

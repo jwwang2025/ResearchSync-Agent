@@ -1,0 +1,48 @@
+version: "3.8"
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: researchsync_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: researchsync_api
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - HOST=0.0.0.0
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    command: ["python", "-m", "backend.main"]
+    volumes:
+      - .:/app
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: researchsync_worker
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    command: ["sh", "-c", "pip install rq && rq worker research --url $REDIS_URL"]
+    volumes:
+      - .:/app
+
+volumes:
+  redis-data:
+

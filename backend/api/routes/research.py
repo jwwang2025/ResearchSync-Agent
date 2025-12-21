@@ -1,13 +1,16 @@
 """
 Research API Routes
 
-研究任务相关的 RESTful API 路由。
+研究任务相关的 RESTful API 路由，带有任务持久化支持（SQLite）和与 WebSocket 的集成点。
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 import uuid
+import json
+import sqlite3
 from datetime import datetime
+from pathlib import Path
 
 from ..models.research import (
     ResearchRequest,
@@ -22,11 +25,84 @@ from ...agents.planner import Planner
 from ...agents.researcher import Researcher
 from ...agents.rapporteur import Rapporteur
 from ...workflow.graph import ResearchWorkflow
+import os
+
+try:
+    # Optional RQ support
+    import redis
+    from rq import Queue
+    RQ_AVAILABLE = True
+except Exception:
+    RQ_AVAILABLE = False
 
 router = APIRouter()
 
-# 临时任务存储（生产环境应使用数据库或 Redis）
-tasks_store: Dict[str, Dict[str, Any]] = {}
+# 数据库文件位置
+DB_PATH = Path(__file__).parents[2] / "data" / "tasks.db"
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def init_db():
+    """初始化 SQLite 数据库和表（如果不存在）。"""
+    conn = sqlite3.connect(str(DB_PATH))
+    try:
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id TEXT PRIMARY KEY,
+            data TEXT,
+            updated_at TEXT
+        )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def load_all_tasks() -> Dict[str, Dict[str, Any]]:
+    """从数据库加载所有任务到内存字典（datetime 字段为 ISO 字符串）。"""
+    tasks: Dict[str, Dict[str, Any]] = {}
+    conn = sqlite3.connect(str(DB_PATH))
+    try:
+        cur = conn.execute("SELECT id, data FROM tasks")
+        for row in cur.fetchall():
+            tid, data = row
+            try:
+                tasks[tid] = json.loads(data)
+            except Exception:
+                tasks[tid] = {"task_id": tid, "status": "unknown", "request": {}}
+    finally:
+        conn.close()
+    return tasks
+
+
+def persist_task(task_id: str):
+    """将指定任务写入数据库（插入或替换）。"""
+    task = tasks_store.get(task_id)
+    if not task:
+        return
+    conn = sqlite3.connect(str(DB_PATH))
+    try:
+        conn.execute(
+            "REPLACE INTO tasks (id, data, updated_at) VALUES (?, ?, ?)",
+            (task_id, json.dumps(_serialize_task(task), ensure_ascii=False), datetime.now().isoformat())
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _serialize_task(task: Dict[str, Any]) -> Dict[str, Any]:
+    """将不可序列化字段（如 datetime）转换为可序列化形式。"""
+    out = dict(task)
+    for k, v in out.items():
+        if isinstance(v, datetime):
+            out[k] = v.isoformat()
+    return out
+
+
+# 初始化 DB 并加载现有任务
+init_db()
+tasks_store: Dict[str, Dict[str, Any]] = load_all_tasks()
 
 
 def create_workflow(llm_provider: str = None, llm_model: str = None):
@@ -98,6 +174,27 @@ async def start_research(request: ResearchRequest):
         "workflow": None,
         "config": None
     }
+    # 持久化新建任务
+    persist_task(task_id)
+
+    # 如果配置了 Redis 并且 RQ 可用，则入队到 Redis，由 worker 进程执行
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url and RQ_AVAILABLE:
+        conn = redis.from_url(redis_url)
+        q = Queue("research", connection=conn)
+        # 导入延迟任务函数路径
+        from ...tasks.jobs import run_research_job
+        job = q.enqueue(run_research_job, task_id, request.dict())
+        # 记录 job id
+        tasks_store[task_id]["job_id"] = job.get_id()
+        persist_task(task_id)
+        return ResearchResponse(
+            task_id=task_id,
+            status=ResearchStatus.PENDING,
+            message="研究任务已入队，使用 RQ worker 处理"
+        )
+    # 持久化新建任务
+    persist_task(task_id)
 
     try:
         # 创建工作流（延迟到 WebSocket 连接时创建，避免阻塞）

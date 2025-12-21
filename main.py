@@ -1,20 +1,11 @@
 """
-ResearchSync 智能体（ResearchSync-Agent）—— 主入口节点
-
-该模块是 ResearchSync 多智能体系统的主入口，重构后采用了基
-于 argparse 库的命令行界面（CLI）。
+Repository root entrypoint — delegate to backend.start to preserve existing behavior.
 """
-
-# 使用 Click 框架的 CLI (backend.cli.main)
-from backend.cli.main import cli
-
-# # 使用 Argparse 框架的 CLI (backend.cli.main_test)
-# from backend.cli.main_test import main
+from backend.main import start
+import os
 
 
-if __name__ == '__main__':
-    # 使用 Click 框架的 CLI
-    cli()
-    
-    # # 使用 Argparse 框架的 CLI
-    # raise SystemExit(main())
+if __name__ == "__main__":
+    # Preserve existing DEV_RELOAD behavior for development
+    reload_flag = os.getenv("DEV_RELOAD", "false").lower() == "true"
+    start(host=os.getenv("HOST", "0.0.0.0"), port=int(os.getenv("PORT", "8000")), reload=reload_flag)
