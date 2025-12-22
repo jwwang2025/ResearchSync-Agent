@@ -1,8 +1,8 @@
 """
-Background job functions for task queue workers (RQ).
+用于任务队列工作进程（RQ）的后台任务函数。
 
-These functions are intended to be enqueued by an RQ worker process.
-They operate on the same SQLite DB used by the API to persist task state.
+这些函数旨在由 RQ 工作进程加入任务队列执行。
+它们操作与 API 共用的 SQLite 数据库，以持久化存储任务状态。
 """
 from typing import Dict, Any
 import json
@@ -11,20 +11,18 @@ from datetime import datetime
 from pathlib import Path
 import os
 
-# Import application workflow creators
+# 导入应用工作流创建器
 from backend.api.routes.research import create_workflow, DB_PATH, _serialize_task
 from backend.api.routes.research import tasks_store as api_tasks_store
-import os
 import redis
-import json
 
 
 def run_research_job(task_id: str, request_data: Dict[str, Any]) -> int:
     """
-    RQ worker entry point to run a research task.
+    执行研究任务的 RQ 工作进程入口函数。
 
-    Updates task status in the SQLite DB directly.
-    Returns 0 on success, non-zero on failure.
+    直接更新 SQLite 数据库中的任务状态。
+    成功时返回 0，失败时返回非 0 值。
     """
     # Ensure DB path is reachable
     db_path = Path(DB_PATH)
@@ -71,7 +69,7 @@ def run_research_job(task_id: str, request_data: Dict[str, Any]) -> int:
 
 
 def _update_task_in_db(conn: sqlite3.Connection, task_id: str, partial: Dict[str, Any]) -> None:
-    """Helper to update task JSON blob in DB."""
+    """辅助函数：更新数据库中的任务 JSON 数据块。"""
     cur = conn.execute("SELECT data FROM tasks WHERE id = ?", (task_id,))
     row = cur.fetchone()
     if row:
