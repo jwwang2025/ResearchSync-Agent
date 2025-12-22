@@ -5,7 +5,7 @@ Config API Routes
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from ...utils.config import load_config_from_env
 from ...utils.config import load_config_from_env, save_config_to_file, Config

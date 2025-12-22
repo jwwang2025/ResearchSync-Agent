@@ -93,10 +93,26 @@ def persist_task(task_id: str):
 
 def _serialize_task(task: Dict[str, Any]) -> Dict[str, Any]:
     """将不可序列化字段（如 datetime）转换为可序列化形式。"""
-    out = dict(task)
-    for k, v in out.items():
-        if isinstance(v, datetime):
-            out[k] = v.isoformat()
+    def _make_serializable(obj):
+        # primitives
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, dict):
+            return {k: _make_serializable(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple, set)):
+            return [_make_serializable(v) for v in obj]
+        # For any other object types (including complex runtime objects like ResearchWorkflow),
+        # return a stable string representation to avoid JSON serialization errors.
+        try:
+            return repr(obj)
+        except Exception:
+            return str(obj)
+
+    out = {}
+    for k, v in task.items():
+        out[k] = _make_serializable(v)
     return out
 
 

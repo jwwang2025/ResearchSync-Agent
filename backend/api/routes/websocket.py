@@ -9,6 +9,7 @@ from typing import Dict, Any
 import json
 import asyncio
 from datetime import datetime
+import os
 
 from ..models.research import ResearchStatus, PlanApprovalRequest
 from .research import tasks_store, create_workflow, persist_task
@@ -24,6 +25,28 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket, task_id: str):
         """接受 WebSocket 连接"""
+        # Whitelist Origin header if WS_ALLOWED_ORIGINS is set; otherwise allow.
+        origin = None
+        try:
+            for (k, v) in websocket.scope.get("headers", []):
+                if k.lower() == b"origin":
+                    origin = v.decode("utf-8", errors="ignore")
+                    break
+        except Exception:
+            origin = None
+
+        allowed_env = os.getenv("WS_ALLOWED_ORIGINS")
+        if allowed_env:
+            allowed = [o.strip() for o in allowed_env.split(",") if o.strip()]
+            if origin is None or origin not in allowed:
+                # Reject unknown origins with 1008 (policy violation)
+                try:
+                    await websocket.close(code=1008, reason="Origin not allowed")
+                except Exception:
+                    pass
+                # raise disconnect to stop further handling
+                raise WebSocketDisconnect()
+
         await websocket.accept()
         self.active_connections[task_id] = websocket
 

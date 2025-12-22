@@ -13,6 +13,14 @@ from .routes import research, tasks, websocket, config
 import os
 import asyncio
 import json
+# 创建 FastAPI 应用 (app must be created before using @app.on_event)
+app = FastAPI(
+    title="ResearchSync-Agent API",
+    description="基于 LangGraph 的多智能体研究系统 API",
+    version="0.1.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
+)
 
 
 # Redis pub/sub: 在应用启动时订阅 worker 发布的任务更新并转发到 WebSocket manager
@@ -84,15 +92,6 @@ async def shutdown_redis_pubsub():
             await conn.close()
     except Exception:
         pass
-
-# 创建 FastAPI 应用
-app = FastAPI(
-    title="ResearchSync-Agent API",
-    description="基于 LangGraph 的多智能体研究系统 API",
-    version="0.1.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc"
-)
 
 # 配置 CORS
 app.add_middleware(

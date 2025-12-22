@@ -39,7 +39,7 @@ export class WebSocketService {
       }
 
       this.taskId = taskId;
-      const wsUrl = `${WS_BASE_URL}/research/${taskId}`;
+      const wsUrl = `${WS_BASE_URL}/ws/research/${taskId}`;
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {

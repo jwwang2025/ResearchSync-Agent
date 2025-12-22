@@ -8,6 +8,8 @@ import os
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from pathlib import Path
+import json
 
 
 class LLMConfig(BaseModel):
@@ -111,6 +113,24 @@ def load_config_from_env() -> Config:
         search=search_config,
         workflow=workflow_config
     )
+
+
+# Load additional config from repository config.json (optional)
+try:
+    repo_root = Path(__file__).parents[3]
+    config_path = repo_root / "config.json"
+    if config_path.exists():
+        with open(config_path, "r", encoding="utf-8") as f:
+            _cfg = json.load(f)
+            # Support top-level "ws_allowed_origins": ["http://..."]
+            if "ws_allowed_origins" in _cfg:
+                os.environ.setdefault("WS_ALLOWED_ORIGINS", ",".join(_cfg.get("ws_allowed_origins") or []))
+            # Or support nested "websocket": {"allowed_origins": [...]}
+            elif isinstance(_cfg.get("websocket"), dict) and _cfg["websocket"].get("allowed_origins"):
+                os.environ.setdefault("WS_ALLOWED_ORIGINS", ",".join(_cfg["websocket"].get("allowed_origins") or []))
+except Exception:
+    # Fail silently - config loading should not break runtime
+    pass
 
 
 def save_config_to_file(config: Config, filepath: str) -> bool:
