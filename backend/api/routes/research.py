@@ -82,9 +82,23 @@ def persist_task(task_id: str):
         return
     conn = sqlite3.connect(str(DB_PATH))
     try:
+        serializable = _serialize_task(task)
+        try:
+            data_blob = json.dumps(serializable, ensure_ascii=False, default=repr)
+        except TypeError:
+            # Best-effort per-field fallback: replace values that still fail to serialize with repr
+            safe = {}
+            for k, v in serializable.items():
+                try:
+                    json.dumps(v, default=repr)
+                    safe[k] = v
+                except Exception:
+                    safe[k] = repr(v)
+            data_blob = json.dumps(safe, ensure_ascii=False, default=repr)
+
         conn.execute(
             "REPLACE INTO tasks (id, data, updated_at) VALUES (?, ?, ?)",
-            (task_id, json.dumps(_serialize_task(task), ensure_ascii=False), datetime.now().isoformat())
+            (task_id, data_blob, datetime.now().isoformat())
         )
         conn.commit()
     finally:

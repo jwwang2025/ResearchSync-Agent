@@ -207,11 +207,23 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
             task["updated_at"] = datetime.now()
             persist_task(task_id)
 
+            # No final report produced — include diagnostic snapshot for debugging
+            debug_info = None
+            try:
+                debug_info = repr(current_state)
+            except Exception:
+                debug_info = "unserializable current_state"
             await manager.send_message(task_id, {
                 "type": "error",
                 "task_id": task_id,
-                "message": "研究未成功完成"
+                "message": "研究未成功完成",
+                "debug": debug_info
             })
+            # Also log server-side
+            try:
+                print(f"[run_research_workflow] Task {task_id} finished without final_report. state={debug_info}")
+            except Exception:
+                pass
 
     except Exception as e:
         task["status"] = ResearchStatus.FAILED
