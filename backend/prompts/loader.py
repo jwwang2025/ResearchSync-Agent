@@ -1,7 +1,7 @@
 """
-Prompt Loader
+提示词加载器
 
-This module provides functionality to load and render prompt templates.
+该模块提供加载和渲染提示词模板的功能。
 """
 
 import os
@@ -13,26 +13,26 @@ from jinja2 import Environment, FileSystemLoader, Template
 
 class PromptLoader:
     """
-    Centralized prompt management system.
+    集中式提示词管理系统。
 
-    Loads prompt templates from markdown files and renders them with variables.
+    从Markdown文件加载提示词模板，并结合变量渲染模板内容。
     """
 
     def __init__(self, prompts_dir: str = None):
         """
-        Initialize the PromptLoader.
+        初始化提示词加载器。
 
-        Args:
-            prompts_dir: Directory containing prompt templates.
-                        If None, uses the default prompts directory.
+        参数:
+            prompts_dir: 包含提示词模板的目录路径。
+                        若为None，则使用默认的提示词目录（当前文件所在目录）。
         """
         if prompts_dir is None:
-            # Default to the prompts directory in the same folder as this file
+            # 默认使用当前文件所在目录作为提示词目录
             prompts_dir = Path(__file__).parent
 
         self.prompts_dir = Path(prompts_dir)
 
-        # Set up Jinja2 environment
+        # 初始化 Jinja2 环境
         self.env = Environment(
             loader=FileSystemLoader(str(self.prompts_dir)),
             trim_blocks=True,
@@ -42,23 +42,23 @@ class PromptLoader:
 
     def load(self, prompt_name: str, **variables: Any) -> str:
         """
-        Load and render a prompt template.
+        加载并渲染提示词模板。
 
-        Args:
-            prompt_name: Name of the prompt file (without .md extension)
-            **variables: Variables to render in the template
+        参数:
+            prompt_name: 提示词文件名（无需传入.md扩展名）
+            **variables: 用于模板渲染的变量（键值对形式）
 
-        Returns:
-            Rendered prompt string
+        返回:
+            渲染完成的提示词字符串
 
-        Raises:
-            FileNotFoundError: If prompt file doesn't exist
+        异常:
+            FileNotFoundError: 当指定的提示词文件不存在时抛出
         """
-        # Add current time by default
+        # 默认添加当前时间变量
         if 'CURRENT_TIME' not in variables:
             variables['CURRENT_TIME'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # Load and render template
+        # 加载并渲染模板
         try:
             template = self.env.get_template(f"{prompt_name}.md")
             rendered = template.render(**variables)
@@ -70,16 +70,16 @@ class PromptLoader:
 
     def load_raw(self, prompt_name: str) -> str:
         """
-        Load a prompt template without rendering.
+        加载提示词模板（不执行渲染）。
 
-        Args:
-            prompt_name: Name of the prompt file (without .md extension)
+        参数:
+            prompt_name: 提示词文件名（无需传入.md扩展名）
 
-        Returns:
-            Raw prompt template string
+        返回:
+            原始的提示词模板字符串
 
-        Raises:
-            FileNotFoundError: If prompt file doesn't exist
+        异常:
+            FileNotFoundError: 当指定的提示词文件不存在时抛出
         """
         prompt_path = self.prompts_dir / f"{prompt_name}.md"
 
@@ -93,16 +93,16 @@ class PromptLoader:
 
     def render_string(self, template_str: str, **variables: Any) -> str:
         """
-        Render a template string with variables.
+        渲染模板字符串（结合变量）。
 
-        Args:
-            template_str: Template string to render
-            **variables: Variables to render in the template
+        参数:
+            template_str: 待渲染的模板字符串
+            **variables: 用于模板渲染的变量（键值对形式）
 
-        Returns:
-            Rendered string
+        返回:
+            渲染完成的字符串
         """
-        # Add current time by default
+        # 默认添加当前时间变量（若未传入）
         if 'CURRENT_TIME' not in variables:
             variables['CURRENT_TIME'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -110,16 +110,16 @@ class PromptLoader:
         return template.render(**variables)
 
 
-# Global instance for convenience
+# 全局实例，方便快速使用
 _default_loader = None
 
 
 def get_default_loader() -> PromptLoader:
     """
-    Get the default global PromptLoader instance.
+    获取默认的全局PromptLoader实例。
 
-    Returns:
-        Default PromptLoader instance
+    返回:
+        默认的PromptLoader实例
     """
     global _default_loader
     if _default_loader is None:

@@ -1,7 +1,7 @@
 """
-LLM Factory
+大语言模型（LLM）工厂类
 
-This module provides a factory pattern for creating LLM instances.
+该模块提供了创建LLM实例的工厂模式实现，支持便捷管理不同厂商的LLM实例化逻辑。
 """
 
 from typing import Optional
@@ -10,10 +10,10 @@ from .base import BaseLLM
 
 class LLMFactory:
     """
-    Factory class for creating LLM instances.
+    用于创建 LLM 实例的工厂类。
 
-    This factory allows easy instantiation of different LLM providers
-    without needing to import them directly.
+    该工厂类支持便捷地实例化不同的大语言模型提供商实例，
+    无需在业务代码中直接导入各提供商的实现类。
     """
 
     _providers = {}
@@ -21,11 +21,11 @@ class LLMFactory:
     @classmethod
     def register_provider(cls, name: str, provider_class):
         """
-        Register a new LLM provider.
+        注册新的大语言模型提供商。
 
-        Args:
-            name: Provider name (e.g., 'openai', 'claude', 'gemini')
-            provider_class: The LLM class to register
+        参数:
+            name: 提供商名称（示例：'openai'、'claude'、'gemini'）
+            provider_class: 待注册的LLM实现类（需继承BaseLLM）
         """
         cls._providers[name.lower()] = provider_class
 
@@ -38,24 +38,24 @@ class LLMFactory:
         **kwargs
     ) -> BaseLLM:
         """
-        Create an LLM instance.
+        创建指定类型的LLM实例。
 
-        Args:
-            provider: Provider name ('openai', 'claude', 'gemini', 'deepseek')
-            api_key: API key for the provider
-            model: Optional model name. If not provided, uses provider's default
-            **kwargs: Additional configuration parameters
+        参数:
+            provider: 提供商名称（支持：'openai'、'claude'、'gemini'、'deepseek'）
+            api_key: 对应提供商的API密钥
+            model: 可选的模型名称，若未指定则使用提供商的默认模型
+            **kwargs: 额外的配置参数（如超时时间、代理地址等）
 
-        Returns:
-            An instance of the requested LLM provider
+        返回:
+            已初始化的指定LLM提供商实例（继承自BaseLLM）
 
-        Raises:
-            ValueError: If the provider is not supported
+        异常:
+            ValueError: 当指定的提供商未被支持/注册时抛出
         """
         provider = provider.lower()
 
         if provider not in cls._providers:
-            # Try to lazy load the provider
+            # 尝试对提供者进行懒加载
             cls._lazy_load_provider(provider)
 
         if provider not in cls._providers:
@@ -67,9 +67,9 @@ class LLMFactory:
 
         llm_class = cls._providers[provider]
 
-        # Create instance with or without model parameter
-        # Note: base_url is only used by OpenAILLM for proxy support
-        # Other providers (claude, gemini, deepseek) will ignore base_url via **kwargs
+        # 实例化LLM类（支持传/不传model参数）
+        # 注意：base_url参数仅用于OpenAILLM类以支持代理配置，
+        # 其他提供商（claude、gemini、deepseek）会通过**kwargs自动忽略该参数
         if model:
             return llm_class(api_key=api_key, model=model, **kwargs)
         else:
@@ -78,10 +78,10 @@ class LLMFactory:
     @classmethod
     def _lazy_load_provider(cls, provider: str):
         """
-        Lazy load a provider when needed.
+        按需懒加载指定的LLM提供商模块（避免初始化时加载所有依赖）。
 
-        Args:
-            provider: Provider name to load
+        参数:
+            provider: 待加载的提供商名称
         """
         try:
             if provider == 'openai':
@@ -97,15 +97,15 @@ class LLMFactory:
                 from .deepseek_llm import DeepSeekLLM
                 cls.register_provider('deepseek', DeepSeekLLM)
         except ImportError as e:
-            # Provider module not available
+            # 若提供商对应的模块未安装/不存在，静默忽略
             pass
 
     @classmethod
     def list_providers(cls) -> list[str]:
         """
-        List all registered providers.
+        获取所有已注册的LLM提供商名称列表。
 
-        Returns:
-            List of provider names
+        返回:
+            已注册提供商名称的列表（如['openai', 'claude']）
         """
         return list(cls._providers.keys())

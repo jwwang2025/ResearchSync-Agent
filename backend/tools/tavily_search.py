@@ -1,7 +1,7 @@
 """
-Tavily Search Tool
+Tavily 搜索工具
 
-This module provides web search functionality using Tavily API.
+该模块提供基于 Tavily API 的网页搜索功能。
 """
 
 from typing import List, Dict, Optional
@@ -11,15 +11,15 @@ from datetime import datetime
 
 class TavilySearch:
     """
-    Tavily search tool for web information retrieval.
+    用于网页信息检索的 Tavily 搜索工具。
     """
 
     def __init__(self, api_key: str):
         """
-        Initialize Tavily search.
+        初始化 Tavily 搜索工具。
 
-        Args:
-            api_key: Tavily API key
+        参数:
+            api_key: Tavily API 密钥
         """
         self.client = TavilyClient(api_key=api_key)
 
@@ -32,20 +32,26 @@ class TavilySearch:
         exclude_domains: Optional[List[str]] = None
     ) -> Dict:
         """
-        Perform a web search using Tavily.
+        使用 Tavily 执行网页搜索。
 
-        Args:
-            query: Search query
-            max_results: Maximum number of results to return
-            search_depth: Search depth ("basic" or "advanced")
-            include_domains: List of domains to include
-            exclude_domains: List of domains to exclude
+        参数:
+            query: 搜索关键词
+            max_results: 要返回的最大结果数量（默认5条）
+            search_depth: 搜索深度（可选值："basic" 基础搜索 / "advanced" 高级搜索）
+            include_domains: 需纳入搜索范围的域名列表（可选）
+            exclude_domains: 需排除在搜索范围外的域名列表（可选）
 
-        Returns:
-            Dictionary containing search results
+        返回:
+            包含搜索结果的字典，结构如下：
+            - query: 搜索关键词
+            - source: 数据源（固定为'tavily'）
+            - results: 搜索结果列表，每个结果包含标题、URL、摘要等信息
+            - timestamp: 搜索时间戳（ISO格式）
+            - total_results: 实际返回的结果数量
+            - error: 错误信息（仅当搜索失败时存在）
         """
         try:
-            # Perform search
+            # 执行搜索
             response = self.client.search(
                 query=query,
                 max_results=max_results,
@@ -54,7 +60,7 @@ class TavilySearch:
                 exclude_domains=exclude_domains
             )
 
-            # Format results
+            # 格式化结果
             results = []
             for item in response.get('results', []):
                 results.append({
@@ -91,14 +97,14 @@ class TavilySearch:
         max_results: int = 5
     ) -> str:
         """
-        Get search context as formatted text.
+        获取格式化文本形式的搜索上下文（整合后的搜索结果）。
 
-        Args:
-            query: Search query
-            max_results: Maximum number of results
+        参数:
+            query: 搜索关键词
+            max_results: 用于生成上下文的最大结果数量（默认5条）
 
-        Returns:
-            Formatted search context string
+        返回:
+            格式化的搜索上下文字符串（整合了关键信息的纯文本）
         """
         try:
             context = self.client.get_search_context(

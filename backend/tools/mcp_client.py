@@ -1,7 +1,7 @@
 """
-MCP (Model Context Protocol) Client
+MCP（模型上下文协议）客户端
 
-This module provides a client for integrating external tools and data sources via MCP.
+该模块提供一个客户端，用于通过MCP集成外部工具和数据源。
 """
 
 from typing import List, Dict, Optional, Any
@@ -11,19 +11,18 @@ import httpx
 
 class MCPClient:
     """
-    MCP client for extended tool and data source access.
+    用于扩展工具和数据源访问的MCP客户端。
 
-    Note: This is a placeholder implementation. Actual MCP integration
-    depends on your specific MCP server setup and available tools.
+    注意：这是一个占位实现。实际的MCP集成需根据你具体的MCP服务器配置和可用工具调整。
     """
 
     def __init__(self, server_url: str, api_key: Optional[str] = None):
         """
-        Initialize MCP client.
+        初始化MCP客户端。
 
-        Args:
-            server_url: MCP server URL
-            api_key: Optional API key for authentication
+        参数:
+            server_url: MCP服务器地址
+            api_key: 可选的身份验证API密钥
         """
         self.server_url = server_url.rstrip('/')
         self.api_key = api_key
@@ -38,15 +37,15 @@ class MCPClient:
         **kwargs
     ) -> Dict:
         """
-        Perform a search using MCP tools.
+        使用MCP工具执行搜索操作。
 
-        Args:
-            query: Search query
-            tool_name: Name of the MCP tool to use
-            **kwargs: Additional tool-specific parameters
+        参数:
+            query: 搜索关键词
+            tool_name: 要使用的MCP工具名称（默认值：web_search 网页搜索）
+            **kwargs: 额外的工具专属参数
 
-        Returns:
-            Dictionary containing search results
+        返回:
+            包含搜索结果的字典
         """
         try:
             async with httpx.AsyncClient() as client:
@@ -93,10 +92,10 @@ class MCPClient:
 
     async def list_tools(self) -> List[Dict]:
         """
-        List available MCP tools.
+        列出所有可用的MCP工具。
 
-        Returns:
-            List of available tools with their descriptions
+        返回:
+            包含可用工具及其描述的列表
         """
         try:
             async with httpx.AsyncClient() as client:
@@ -115,14 +114,14 @@ class MCPClient:
         parameters: Dict[str, Any]
     ) -> Dict:
         """
-        Execute a specific MCP tool.
+        执行指定的MCP工具。
 
-        Args:
-            tool_name: Name of the tool to execute
-            parameters: Tool parameters
+        参数:
+            tool_name: 要执行的工具名称
+            parameters: 工具执行所需的参数
 
-        Returns:
-            Tool execution results
+        返回:
+            工具执行结果
         """
         try:
             async with httpx.AsyncClient() as client:

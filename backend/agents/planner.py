@@ -1,8 +1,7 @@
 """
-Planner Agent
+规划器智能体（Planner Agent）
 
-This module implements the Planner agent, which is responsible for
-creating and managing research plans.
+该模块实现了规划器智能体，核心职责是创建和管理研究计划。
 """
 
 import json
@@ -14,72 +13,72 @@ from ..prompts.loader import PromptLoader
 
 class Planner:
     """
-    Planner agent - strategic planning component.
+    规划器智能体（Planner agent） - 战略规划组件。
 
-    Responsibilities:
-    - Analyze research objectives
-    - Create structured research plans
-    - Break down complex tasks into subtasks
-    - Accept and process user modifications
-    - Evaluate context sufficiency
-    - Decide when to continue research or generate report
+    核心职责：
+    - 分析研究目标
+    - 创建结构化的研究计划
+    - 将复杂任务拆解为子任务
+    - 接收并处理用户的修改意见
+    - 评估上下文信息的充分性
+    - 决策是否继续研究或生成最终报告
     """
 
     def __init__(self, llm: BaseLLM):
         """
-        Initialize the Planner.
+        初始化规划器智能体。
 
-        Args:
-            llm: Language model instance for planning
+        参数:
+            llm: 用于规划任务的大语言模型实例
         """
         self.llm = llm
         self.prompt_loader = PromptLoader()
 
     def create_research_plan(self, state: ResearchState) -> ResearchState:
         """
-        Create a research plan based on the query.
+        根据用户查询创建研究计划。
 
-        Args:
-            state: Current research state
+        参数:
+            state: 当前的研究状态（包含查询、反馈、结果等上下文）
 
-        Returns:
-            Updated state with research plan
+        返回:
+            已更新研究计划的状态对象
         """
         query = state['query']
         user_feedback = state.get('user_feedback', '')
 
-        # Build prompt for plan generation
+        # 构建生成计划所需的提示词
         prompt = self.prompt_loader.load(
             'planner_create_plan',
             query=query,
             user_feedback=user_feedback if user_feedback else None
         )
 
-        # Generate plan
+        # 生成研究计划
         response = self.llm.generate(prompt, temperature=0.7)
 
-        # Parse JSON response
+        # 解析JSON格式的响应结果
         try:
-            # Extract JSON from response (in case LLM adds extra text)
+            # 从响应中提取JSON内容（兼容LLM可能追加额外文本的情况）
             start = response.find('{')
             end = response.rfind('}') + 1
             if start != -1 and end > start:
                 json_str = response[start:end]
                 plan = json.loads(json_str)
             else:
-                # Fallback plan if parsing fails
+                # 解析失败时创建回退计划
                 plan = self._create_fallback_plan(query)
 
-            # Add status to subtasks
+            # 为所有子任务添加状态标识
             for task in plan.get('sub_tasks', []):
                 task['status'] = 'pending'
 
-            # Update state
+            # 更新研究状态
             state['research_plan'] = plan
             state['max_iterations'] = plan.get('estimated_iterations', 3)
 
         except json.JSONDecodeError:
-            # Create fallback plan
+            # JSON解析失败时使用回退计划
             plan = self._create_fallback_plan(query)
             state['research_plan'] = plan
 
@@ -87,13 +86,13 @@ class Planner:
 
     def _create_fallback_plan(self, query: str) -> PlanStructure:
         """
-        Create a simple fallback plan if JSON parsing fails.
+        当JSON解析失败时，创建简易的回退研究计划。
 
-        Args:
-            query: Research query
+        参数:
+            query: 研究查询语句
 
-        Returns:
-            Basic research plan
+        返回:
+            基础版研究计划（保证功能可用）
         """
         return {
             'research_goal': query,
@@ -113,14 +112,14 @@ class Planner:
 
     def modify_plan(self, state: ResearchState, modifications: str) -> ResearchState:
         """
-        Modify the research plan based on user feedback.
+        根据用户反馈修改研究计划。
 
-        Args:
-            state: Current research state
-            modifications: User's modification requests
+        参数:
+            state: 当前的研究状态
+            modifications: 用户提出的计划修改要求
 
-        Returns:
-            Updated state with modified plan
+        返回:
+            已更新修改后计划的状态对象
         """
         current_plan = state['research_plan']
 
@@ -132,7 +131,7 @@ class Planner:
 
         response = self.llm.generate(prompt, temperature=0.7)
 
-        # Parse modified plan
+        # 解析修改后的计划
         try:
             start = response.find('{')
             end = response.rfind('}') + 1
@@ -141,20 +140,20 @@ class Planner:
                 modified_plan = json.loads(json_str)
                 state['research_plan'] = modified_plan
         except json.JSONDecodeError:
-            # Keep current plan if parsing fails
+            # 解析失败时保留原计划
             pass
 
         return state
 
     def evaluate_context_sufficiency(self, state: ResearchState) -> bool:
         """
-        Evaluate whether gathered context is sufficient.
+        评估已收集的上下文信息是否足够回答研究问题。
 
-        Args:
-            state: Current research state
+        参数:
+            state: 当前的研究状态
 
-        Returns:
-            True if context is sufficient, False otherwise
+        返回:
+            信息充足返回True，否则返回False
         """
         query = state['query']
         plan = state['research_plan']
@@ -162,15 +161,15 @@ class Planner:
         iteration = state['iteration_count']
         max_iterations = state['max_iterations']
 
-        # Check if max iterations reached
+        # 检查是否达到最大迭代次数（强制终止）
         if iteration >= max_iterations:
             return True
 
-        # Check if we have results
+        # 检查是否有研究结果（无结果则信息不足）
         if not results:
             return False
 
-        # Use LLM to evaluate sufficiency
+        # 使用LLM评估信息充分性
         prompt = self.prompt_loader.load(
             'planner_evaluate_context',
             query=query,
@@ -186,19 +185,19 @@ class Planner:
 
     def get_next_task(self, state: ResearchState) -> Optional[SubTask]:
         """
-        Get the next pending task from the plan.
+        从研究计划中获取下一个待执行的子任务。
 
-        Args:
-            state: Current research state
+        参数:
+            state: 当前的研究状态
 
-        Returns:
-            Next task to execute, or None if all tasks completed
+        返回:
+            下一个待执行的子任务；若所有任务完成则返回None
         """
         plan = state.get('research_plan')
         if not plan:
             return None
 
-        # Find first pending task by priority
+        # 按优先级排序，找到第一个待执行任务
         tasks = sorted(
             plan.get('sub_tasks', []),
             key=lambda t: (t.get('priority', 99), t.get('task_id', 0))
@@ -212,13 +211,13 @@ class Planner:
 
     def format_plan_for_display(self, plan: PlanStructure) -> str:
         """
-        Format plan for display to user.
+        格式化研究计划，便于展示给用户。
 
-        Args:
-            plan: Research plan
+        参数:
+            plan: 研究计划对象
 
-        Returns:
-            Formatted plan string
+        返回:
+            格式化后的计划字符串（易读的文本格式）
         """
         output = []
         output.append(f"=Ë Research Goal: {plan.get('research_goal', 'N/A')}")
@@ -236,5 +235,5 @@ class Planner:
         return ''.join(output)
 
     def __repr__(self) -> str:
-        """String representation."""
+        """返回规划器实例的字符串表示（便于调试）。"""
         return f"Planner(llm={self.llm})"

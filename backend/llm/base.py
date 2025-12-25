@@ -1,7 +1,7 @@
 """
-LLM Base Class
+大语言模型（LLM）基类
 
-This module defines the abstract base class for all LLM providers.
+该模块定义了所有大语言模型提供商的抽象基类。
 """
 
 from abc import ABC, abstractmethod
@@ -10,20 +10,20 @@ from typing import Optional, Dict, Any, Iterator
 
 class BaseLLM(ABC):
     """
-    Abstract base class for LLM providers.
+    大语言模型（LLM）提供商的抽象基类。
 
-    All LLM implementations (OpenAI, Claude, Gemini) should inherit from this class
-    and implement the required abstract methods.
+    所有LLM实现类（如OpenAI、Claude、Gemini）都应继承此类，
+    并实现所有必需的抽象方法。
     """
 
     def __init__(self, api_key: str, model: str, **kwargs):
         """
-        Initialize the LLM.
+        初始化大语言模型实例。
 
-        Args:
-            api_key: API key for the LLM provider
-            model: Model name/identifier
-            **kwargs: Additional configuration parameters
+        参数:
+            api_key: 大语言模型提供商的API密钥
+            model: 模型名称/标识符（如gpt-4、claude-3-opus）
+            **kwargs: 额外的配置参数（如超时时间、基础URL等）
         """
         self.api_key = api_key
         self.model = model
@@ -32,31 +32,31 @@ class BaseLLM(ABC):
     @abstractmethod
     def generate(self, prompt: str, **kwargs) -> str:
         """
-        Generate text from a prompt.
+        根据提示词生成文本。
 
-        Args:
-            prompt: The input prompt
-            **kwargs: Additional generation parameters (temperature, max_tokens, etc.)
+        参数:
+            prompt: 输入提示词
+            **kwargs: 额外的生成参数（如temperature温度、max_tokens最大令牌数等）
 
-        Returns:
-            Generated text response
+        返回:
+            生成的文本响应结果
         """
         pass
 
     @abstractmethod
     def stream_generate(self, prompt: str, **kwargs) -> Iterator[str]:
         """
-        Stream generate text from a prompt.
+        流式生成提示词对应的文本（逐块返回）。
 
-        Args:
-            prompt: The input prompt
-            **kwargs: Additional generation parameters
+        参数:
+            prompt: 输入提示词
+            **kwargs: 额外的生成参数
 
-        Yields:
-            Text chunks as they are generated
+        生成器输出:
+            文本生成过程中产生的逐块文本内容
         """
         pass
 
     def __repr__(self) -> str:
-        """String representation of the LLM instance."""
+        """返回 LLM 实例的字符串表示形式"""
         return f"{self.__class__.__name__}(model={self.model})"

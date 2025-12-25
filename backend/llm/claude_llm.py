@@ -1,5 +1,5 @@
 """
-Claude LLM Implementation
+Claude 大语言模型（LLM）实现
 """
 
 from typing import Iterator
@@ -9,38 +9,38 @@ from .base import BaseLLM
 
 class ClaudeLLM(BaseLLM):
     """
-    Anthropic Claude LLM implementation.
+    Anthropic Claude 大语言模型（LLM）实现类。
 
-    Supports Claude 3.5 Sonnet, Claude 3 Opus, and other Claude models.
+     支持 Claude 3.5 Sonnet、Claude 3 Opus 及其他 Claude 系列模型。
     """
 
     def __init__(self, api_key: str, model: str = "claude-3-5-sonnet-20241022", **kwargs):
         """
-        Initialize Claude LLM.
+        初始化 Claude 大语言模型实例。
 
-        Args:
-            api_key: Anthropic API key
-            model: Model name (default: claude-3-5-sonnet-20241022)
-            **kwargs: Additional configuration
+        参数:
+            api_key: Anthropic 平台的 API 密钥
+            model: 模型名称（默认值：claude-3-5-sonnet-20241022）
+            **kwargs: 额外的配置参数
         """
         super().__init__(api_key, model, **kwargs)
         self.client = Anthropic(api_key=api_key)
 
     def generate(self, prompt: str, **kwargs) -> str:
         """
-        Generate text using Claude API.
+        调用 Claude API 生成文本。
 
-        Args:
-            prompt: Input prompt
-            **kwargs: Additional parameters (temperature, max_tokens, etc.)
+        参数:
+            prompt: 输入提示词
+            **kwargs: 额外的生成参数（如temperature温度、max_tokens最大令牌数等）
 
-        Returns:
-            Generated text
+        返回:
+            生成的文本内容
         """
-        # Merge default config with kwargs
+        # 合并默认配置与传入的参数
         params = {**self.config, **kwargs}
 
-        # Set default max_tokens if not provided
+        # 若未传入max_tokens则设置默认值（避免接口参数缺失）
         if 'max_tokens' not in params:
             params['max_tokens'] = 4096
 
@@ -53,19 +53,19 @@ class ClaudeLLM(BaseLLM):
 
     def stream_generate(self, prompt: str, **kwargs) -> Iterator[str]:
         """
-        Stream generate text using Claude API.
+        通过 Claude API 流式生成文本（逐块返回）。
 
-        Args:
-            prompt: Input prompt
-            **kwargs: Additional parameters
+        参数:
+            prompt: 输入提示词
+            **kwargs: 额外的生成参数
 
-        Yields:
-            Text chunks
+        生成器输出:
+            逐块返回的文本内容（流式输出的每个文本片段）
         """
-        # Merge default config with kwargs
+        # 合并默认配置与传入的参数
         params = {**self.config, **kwargs}
 
-        # Set default max_tokens if not provided
+        # 若未传入max_tokens则设置默认值（避免接口参数缺失）
         if 'max_tokens' not in params:
             params['max_tokens'] = 4096
 

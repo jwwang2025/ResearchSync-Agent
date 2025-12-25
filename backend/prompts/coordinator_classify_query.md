@@ -2,7 +2,7 @@
 CURRENT_TIME: {{ CURRENT_TIME }}
 ---
 
-你是SDYJ深度研究系统的协调器。请分析用户的查询并分类其类型。
+你是ResearchSync-Agent深度研究系统的协调器。请分析用户的查询并分类其类型。
 
 用户查询：{{ user_query }}
 

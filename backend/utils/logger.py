@@ -1,7 +1,7 @@
 """
-Logging Utility
+日志工具模块
 
-This module provides logging functionality for the application.
+该模块为应用程序提供日志记录功能。
 """
 
 import logging
@@ -13,11 +13,25 @@ from rich.console import Console
 
 
 def setup_logger(
-    name: str = "SDYJ_Research",
+    name: str = "ResearchSync-Agent",
     level: int = logging.INFO,
     log_file: Optional[str] = None,
     use_rich: bool = True
 ) -> logging.Logger:
+
+    """
+    配置并获取日志记录器
+    
+    参数:
+        name: 日志记录器名称（默认值：SDYJ_Research）
+        level: 日志级别（默认值：logging.INFO）
+        log_file: 日志文件路径（可选，若指定则同时输出日志到文件）
+        use_rich: 是否使用Rich库美化控制台日志输出（默认值：True）
+    
+    返回:
+        配置完成的logging.Logger实例
+    """
+
     logger = logging.getLogger(name)
     logger.setLevel(level)
     logger.handlers = []
