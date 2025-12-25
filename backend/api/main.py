@@ -13,7 +13,7 @@ from .routes import research, tasks, websocket, config
 import os
 import asyncio
 import json
-# 创建 FastAPI 应用 (app must be created before using @app.on_event)
+# 创建 FastAPI 应用 
 app = FastAPI(
     title="ResearchSync-Agent API",
     description="基于 LangGraph 的多智能体研究系统 API",
