@@ -15,14 +15,14 @@ from ..prompts.loader import PromptLoader
 
 class Researcher:
     """
-    Researcher agent - information collection component.
+    研究者智能体（Researcher agent） —— 信息收集组件
 
-    Responsibilities:
-    - Execute information retrieval tasks
-    - Search from multiple data sources
-    - Filter and organize search results
-    - Aggregate results from different sources
-    - Extract relevant information
+    职责：
+    - 执行信息检索任务
+    - 从多个数据源进行检索
+    - 筛选并整理检索结果
+    - 汇总不同数据源的检索结果
+    - 提取相关信息
     """
 
     def __init__(
@@ -33,13 +33,13 @@ class Researcher:
         mcp_api_key: Optional[str] = None
     ):
         """
-        Initialize the Researcher.
+        初始化研究者智能体
 
-        Args:
-            llm: Language model instance for processing
-            tavily_api_key: Tavily API key (optional)
-            mcp_server_url: MCP server URL (optional)
-            mcp_api_key: MCP API key (optional)
+        参数:
+            llm: 用于数据处理的大语言模型实例
+            tavily_api_key: Tavily API 密钥（可选）
+            mcp_server_url: MCP 服务器地址（可选）
+            mcp_api_key: MCP API 密钥（可选）
         """
         self.llm = llm
         self.tavily = TavilySearch(tavily_api_key) if tavily_api_key else None
@@ -49,18 +49,18 @@ class Researcher:
 
     def execute_task(self, state: ResearchState, task: SubTask) -> ResearchState:
         """
-        Execute a research task.
+        执行研究任务
 
-        Args:
-            state: Current research state
-            task: Task to execute
+        参数:
+            state: 当前的研究状态
+            task: 待执行的子任务
 
-        Returns:
-            Updated state with research results
+        返回:
+            包含研究结果的更新后状态
         """
         results = []
 
-        # Execute searches for each query
+        # 为每个检索语句执行检索操作
         for query in task.get('search_queries', []):
             for source in task.get('sources', []):
                 result = self._search(query, source)
@@ -68,13 +68,13 @@ class Researcher:
                     result['task_id'] = task['task_id']
                     results.append(result)
 
-        # Add results to state
+        # 将检索结果添加到状态中
         if 'research_results' not in state:
             state['research_results'] = []
 
         state['research_results'].extend(results)
 
-        # Mark task as completed
+        # 将任务标记为已完成
         if state.get('research_plan'):
             for t in state['research_plan'].get('sub_tasks', []):
                 if t.get('task_id') == task['task_id']:
@@ -85,14 +85,14 @@ class Researcher:
 
     def _search(self, query: str, source: str) -> Optional[SearchResult]:
         """
-        Perform search using specified source.
+        使用指定的数据源执行检索操作
 
-        Args:
-            query: Search query
-            source: Source name ('tavily', 'arxiv', 'mcp')
+        参数:
+            query: 检索语句
+            source: 数据源名称（可选值：'tavily'、'arxiv'、'mcp'）
 
-        Returns:
-            Search results or None
+        返回:
+            检索结果（无有效结果时返回None）
         """
         try:
             if source == 'tavily' and self.tavily:
@@ -114,15 +114,15 @@ class Researcher:
 
     def aggregate_results(self, results: List[SearchResult]) -> Dict:
         """
-        Aggregate and organize search results.
+        汇总并整理检索结果
 
-        Args:
-            results: List of search results
+        参数:
+            results: 检索结果列表
 
-        Returns:
-            Aggregated results summary
+        返回:
+            汇总后的结果摘要
         """
-        # Group results by source
+        # 按数据源分组结果
         by_source = {}
         for result in results:
             source = result.get('source', 'unknown')
@@ -130,7 +130,7 @@ class Researcher:
                 by_source[source] = []
             by_source[source].append(result)
 
-        # Calculate statistics
+        # 计算统计信息
         total_results = sum(len(r.get('results', [])) for r in results)
 
         return {
@@ -147,20 +147,20 @@ class Researcher:
 
     def extract_relevant_info(self, state: ResearchState) -> str:
         """
-        Extract relevant information from all research results.
+        从所有研究结果中提取相关信息
 
-        Args:
-            state: Current research state
+        参数:
+            state: 当前的研究状态
 
-        Returns:
-            Extracted and summarized information
+        返回:
+            提取并汇总后的信息
         """
         results = state.get('research_results', [])
 
         if not results:
             return "No research results available."
 
-        # Compile all search results
+        # 编译所有检索结果
         all_items = []
         for result in results:
             for item in result.get('results', []):
@@ -172,7 +172,7 @@ class Researcher:
                     'url': item.get('url')
                 })
 
-        # Use LLM to extract and summarize
+        # 使用大语言模型进行信息提取和汇总
         prompt = self.prompt_loader.load(
             'researcher_extract_info',
             query=state['query'],
@@ -184,13 +184,13 @@ class Researcher:
 
     def _format_results_for_prompt(self, items: List[Dict]) -> str:
         """
-        Format search results for LLM prompt.
+        格式化检索结果，用于构建大语言模型提示词
 
-        Args:
-            items: List of search result items
+        参数:
+            items: 检索结果条目列表
 
-        Returns:
-            Formatted string
+        返回:
+            格式化后的字符串
         """
         formatted = []
         for i, item in enumerate(items, 1):
@@ -201,7 +201,7 @@ class Researcher:
         return '\n'.join(formatted)
 
     def __repr__(self) -> str:
-        """String representation."""
+        """类的字符串表示形式"""
         sources = []
         if self.tavily:
             sources.append('tavily')

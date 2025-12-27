@@ -1,8 +1,7 @@
 """
 Rapporteur Agent
 
-This module implements the Rapporteur agent, which is responsible for
-generating the final research report.
+该模块实现了报告生成智能体（Rapporteur agent），其核心职责是生成最终的研究报告。
 """
 
 from typing import Dict, List
@@ -14,48 +13,48 @@ from ..prompts.loader import PromptLoader
 
 class Rapporteur:
     """
-    Rapporteur agent - report generation component.
+    报告生成智能体（Rapporteur agent） —— 报告生成组件
 
-    Responsibilities:
-    - Summarize research findings
-    - Organize collected information
-    - Generate structured reports (Markdown or HTML)
-    - Format citations and references
-    - Ensure report coherence and readability
+    职责：
+    - 汇总研究发现
+    - 整理收集到的信息
+    - 生成结构化报告（Markdown 或 HTML 格式）
+    - 格式化引用格式与参考文献
+    - 确保报告的连贯性与可读性
     """
 
     def __init__(self, llm: BaseLLM):
         """
-        Initialize the Rapporteur.
+        初始化报告生成智能体
 
-        Args:
-            llm: Language model instance for report generation
+        参数:
+            llm: 用于生成报告的大语言模型实例
         """
         self.llm = llm
         self.prompt_loader = PromptLoader()
 
     def generate_report(self, state: ResearchState) -> ResearchState:
         """
-        Generate a comprehensive research report.
+        生成一份全面的研究报告
 
-        Args:
-            state: Current research state with all research results
+        参数:
+            state: 包含所有研究结果的当前研究状态
 
-        Returns:
-            Updated state with final report
+        返回:
+            包含最终报告的更新后状态
         """
         query = state['query']
         plan = state.get('research_plan', {})
         results = state.get('research_results', [])
         output_format = state.get('output_format', 'markdown')
 
-        # Summarize findings
+        # 汇总研究发现
         summary = self._summarize_findings(query, results)
 
-        # Organize information
+        # 整理信息
         organized_info = self._organize_information(summary, results)
 
-        # Generate report based on format
+        # 根据指定格式生成报告
         if output_format == 'html':
             report = self._generate_html_report(
                 query=query,
@@ -65,7 +64,7 @@ class Rapporteur:
                 results=results
             )
         else:
-            # Default to markdown
+            # 默认使用 Markdown 格式
             report = self._generate_markdown_report(
                 query=query,
                 plan=plan,
@@ -74,7 +73,7 @@ class Rapporteur:
                 results=results
             )
 
-        # Update state
+        # 更新状态
         state['final_report'] = report
         state['current_step'] = 'completed'
 
@@ -82,16 +81,16 @@ class Rapporteur:
 
     def _summarize_findings(self, query: str, results: List[Dict]) -> str:
         """
-        Summarize all research findings.
+        汇总所有研究发现
 
-        Args:
-            query: Research query
-            results: List of research results
+        参数:
+            query: 研究查询语句
+            results: 研究结果列表
 
-        Returns:
-            Summary of findings
+        返回:
+            研究发现的汇总内容
         """
-        # Compile all result snippets
+        # 编译所有结果摘要
         all_content = []
         for result in results:
             for item in result.get('results', []):
@@ -110,16 +109,16 @@ class Rapporteur:
 
     def _organize_information(self, summary: str, results: List[Dict]) -> Dict:
         """
-        Organize information into structured sections.
+        将信息整理为结构化章节
 
-        Args:
-            summary: Research summary
-            results: List of research results
+        参数:
+            summary: 研究汇总内容
+            results: 研究结果列表
 
-        Returns:
-            Organized information structure
+        返回:
+            结构化的信息整理结果
         """
-        # Extract key themes using LLM
+        # 使用大预言模型提取核心主题
         prompt = self.prompt_loader.load(
             'rapporteur_organize_info',
             summary=summary
@@ -127,7 +126,7 @@ class Rapporteur:
 
         response = self.llm.generate(prompt, temperature=0.5)
 
-        # Try to parse JSON
+        # 尝试解析 JSON 格式
         import json
         try:
             start = response.find('{')
@@ -139,7 +138,7 @@ class Rapporteur:
         except json.JSONDecodeError:
             pass
 
-        # Fallback structure
+        # 备用结构
         return {
             'themes': [
                 {
@@ -158,49 +157,49 @@ class Rapporteur:
         results: List[Dict]
     ) -> str:
         """
-        Generate a structured Markdown report.
+        生成一份结构化的 Markdown 格式报告
 
-        Args:
-            query: Research query
-            plan: Research plan
-            summary: Research summary
-            organized_info: Organized information
-            results: Research results
+        参数:
+            query: 研究查询语句
+            plan: 研究计划
+            summary: 研究汇总内容
+            organized_info: 整理后的结构化信息
+            results: 研究结果
 
-        Returns:
-            Markdown formatted report
+        返回:
+            Markdown 格式的报告字符串
         """
-        # Build report sections
+        # 构建报告各个章节
         sections = []
 
-        # Title
+        # 标题
         sections.append(f"# 研究报告：{query}\n")
 
-        # Metadata
+        # 元数据
         sections.append(f"**生成时间：** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         sections.append(f"**研究目标：** {plan.get('research_goal', query)}\n")
         sections.append(f"**信息来源数量：** {len(results)}\n")
 
-        # Executive Summary
+        # 执行摘要
         sections.append("\n## 执行摘要\n")
         sections.append(summary)
 
-        # Key Findings (organized by themes)
+        # 核心发现（按主题分类）
         sections.append("\n## 核心发现\n")
         for theme in organized_info.get('themes', []):
             sections.append(f"\n### {theme['name']}\n")
             for point in theme.get('key_points', []):
                 sections.append(f"- {point}\n")
 
-        # Synthesized Analysis (NEW: generate integrated analysis instead of simple listing)
+        # 综合分析（新增：生成整合式分析，而非简单罗列）
         sections.append("\n## 深度分析\n")
         sections.append(self._generate_synthesized_analysis(query, summary, organized_info, results))
 
-        # References
+        # 参考资料
         sections.append("\n## 参考资料\n")
         sections.append(self._format_citations(results))
 
-        # Conclusion
+        # 结论
         sections.append("\n## 结论\n")
         sections.append(self._generate_conclusion(query, summary))
 
@@ -208,13 +207,13 @@ class Rapporteur:
 
     def _format_detailed_results(self, results: List[Dict]) -> str:
         """
-        Format detailed results section.
+        格式化详细结果章节
 
-        Args:
-            results: Research results
+        参数:
+            results: 研究结果
 
-        Returns:
-            Formatted results string
+        返回:
+            格式化后的结果字符串
         """
         formatted = []
         result_num = 1
@@ -241,13 +240,13 @@ class Rapporteur:
 
     def _format_citations(self, results: List[Dict]) -> str:
         """
-        Format citations and references.
+        格式化引用格式与参考文献
 
-        Args:
-            results: Research results
+        参数:
+            results: 研究结果
 
-        Returns:
-            Formatted citations
+        返回:
+            格式化后的引用内容
         """
         citations = []
         citation_num = 1
@@ -275,21 +274,21 @@ class Rapporteur:
         results: List[Dict]
     ) -> str:
         """
-        Generate synthesized analysis that integrates all findings.
+        生成整合所有研究发现的综合分析
 
-        Args:
-            query: Research query
-            summary: Research summary
-            organized_info: Organized themes
-            results: Research results
+        参数:
+            query: 研究查询语句
+            summary: 研究汇总内容
+            organized_info: 整理后的核心主题
+            results: 研究结果
 
-        Returns:
-            Integrated analysis text
+        返回:
+            整合后的分析文本
         """
-        # Extract key content from results
+        # 从结果中提取关键内容
         key_content = []
-        for result in results[:10]:  # Limit to first 10 results
-            for item in result.get('results', [])[:3]:  # Top 3 per result
+        for result in results[:10]:  # 限制取前10条研究结果
+            for item in result.get('results', [])[:3]:  # 每条结果取前三条详情
                 key_content.append(f"- {item.get('snippet', '')[:300]}")
 
         content_text = '\n'.join(key_content)
@@ -306,14 +305,14 @@ class Rapporteur:
 
     def _generate_conclusion(self, query: str, summary: str) -> str:
         """
-        Generate a conclusion section.
+        生成报告的结论章节
 
-        Args:
-            query: Research query
-            summary: Research summary
+        参数:
+            query: 研究查询语句
+            summary: 研究汇总内容
 
-        Returns:
-            Conclusion text
+        返回:
+            结论文本
         """
         prompt = self.prompt_loader.load(
             'rapporteur_conclusion',
@@ -333,23 +332,23 @@ class Rapporteur:
         results: List[Dict]
     ) -> str:
         """
-        Generate a structured HTML report.
+        生成一份结构化的 HTML 格式报告
 
-        Args:
-            query: Research query
-            plan: Research plan
-            summary: Research summary
-            organized_info: Organized information
-            results: Research results
+        参数:
+            query: 研究查询语句
+            plan: 研究计划
+            summary: 研究汇总内容
+            organized_info: 整理后的结构化信息
+            results: 研究结果
 
-        Returns:
-            HTML formatted report
+        返回:
+            HTML 格式的报告字符串
         """
-        # Generate analysis and conclusion
+        # 生成分析内容与结论
         analysis = self._generate_synthesized_analysis(query, summary, organized_info, results)
         conclusion = self._generate_conclusion(query, summary)
 
-        # Format themes as HTML-friendly text
+        # 将核心主题格式化为适用于 HTML 的文本
         themes_text = ""
         for theme in organized_info.get('themes', []):
             themes_text += f"<h3>{theme['name']}</h3>\n<ul>\n"
@@ -357,10 +356,10 @@ class Rapporteur:
                 themes_text += f"<li>{point}</li>\n"
             themes_text += "</ul>\n"
 
-        # Format citations
+        # 格式化参考文献
         citations = self._format_citations(results)
 
-        # Generate HTML using LLM
+        # 使用大语言模型生成 HTML 内容
         prompt = self.prompt_loader.load(
             'rapporteur_generate_html',
             query=query,
@@ -374,7 +373,7 @@ class Rapporteur:
 
         html_report = self.llm.generate(prompt, temperature=0.3, max_tokens=4000)
 
-        # Clean up the HTML (remove markdown code blocks if LLM added them)
+        # 清理 HTML 内容（移除大语言模型可能添加的 Markdown 代码块标记）
         if '```html' in html_report:
             html_report = html_report.split('```html')[1].split('```')[0].strip()
         elif '```' in html_report:
@@ -384,14 +383,14 @@ class Rapporteur:
 
     def save_report(self, report: str, filepath: str) -> bool:
         """
-        Save report to file.
+        将报告保存到文件
 
-        Args:
-            report: Report content
-            filepath: Path to save the report
+        参数:
+            report: 报告内容
+            filepath: 报告保存路径
 
-        Returns:
-            True if successful, False otherwise
+        返回:
+            保存成功返回 True，失败返回 False
         """
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -402,5 +401,5 @@ class Rapporteur:
             return False
 
     def __repr__(self) -> str:
-        """String representation."""
+        """类的字符串表示形式"""
         return f"Rapporteur(llm={self.llm})"
