@@ -1,7 +1,7 @@
 """
-Research Workflow Graph
+研究工作流图
 
-This module creates and manages the LangGraph workflow for the research system.
+该模块为研究系统创建并管理 LangGraph 工作流。
 """
 
 from typing import Optional
@@ -22,71 +22,71 @@ def create_research_graph(
     rapporteur: Rapporteur
 ):
     """
-    Create the research workflow graph.
+    创建研究工作流图。
 
-    Args:
-        coordinator: Coordinator agent instance
-        planner: Planner agent instance
-        researcher: Researcher agent instance
-        rapporteur: Rapporteur agent instance
+    参数:
+        coordinator: 协调器（Coordinator）智能体实例
+        planner: 规划器（Planner）智能体实例
+        researcher: 研究员（Researcher）智能体实例
+        rapporteur: 报告生成器（Rapporteur）智能体实例
 
-    Returns:
-        Compiled LangGraph workflow
+    返回:
+        已编译的 LangGraph 工作流
     """
-    # Create workflow nodes
+    # 创建工作流节点实例
     nodes = WorkflowNodes(coordinator, planner, researcher, rapporteur)
 
-    # Initialize state graph
+    # 初始化状态图
     workflow = StateGraph(dict)  # Use dict instead of TypedDict for compatibility
 
-    # Add nodes to the graph
+    # 向图中添加节点
     workflow.add_node("coordinator", nodes.coordinator_node)
     workflow.add_node("planner", nodes.planner_node)
     workflow.add_node("human_review", nodes.human_review_node)
     workflow.add_node("researcher", nodes.researcher_node)
     workflow.add_node("rapporteur", nodes.rapporteur_node)
 
-    # Add edges from START instead of using set_entry_point
+    # 从 START 节点添加边，替代使用 set_entry_point 方法
     workflow.add_edge(START, "coordinator")
 
-    # Coordinator -> conditional edge (simple query ends, research continues)
+    # 协调器 -> 条件边（简单查询直接结束，研究类查询继续执行）
     workflow.add_conditional_edges(
         "coordinator",
         nodes.should_continue_to_planner,
         {
-            "planner": "planner",  # Research query
-            "end": END             # Simple query (greeting/inappropriate)
+            "planner": "planner",  # 研究类查询
+            "end": END             # 简单查询（问候/不恰当内容）
         }
     )
 
-    # Planner -> Human Review
+    # 规划器 -> 人工审核
     workflow.add_edge("planner", "human_review")
 
-    # Human Review -> conditional edge
+    # 人工审核 -> 条件边
     workflow.add_conditional_edges(
         "human_review",
         nodes.should_continue_research,
         {
-            "planner": "planner",      # User wants modifications
-            "researcher": "researcher"  # User approved, start research
+            "planner": "planner",      # 用户需要修改计划
+            "researcher": "researcher"  # 用户已批准，启动研究
         }
     )
 
-    # Researcher -> conditional edge
+    # 研究员 -> 条件边
     workflow.add_conditional_edges(
         "researcher",
         nodes.should_generate_report,
         {
-            "researcher": "researcher",  # Continue research
-            "rapporteur": "rapporteur"   # Generate report
+            "researcher": "researcher",  # 继续执行研究任务
+            "rapporteur": "rapporteur"   # 生成最终报告
         }
     )
 
-    # Rapporteur -> END
+    # 报告生成器 -> 结束节点
     workflow.add_edge("rapporteur", END)
 
-    # Compile the graph with checkpointer
-    # Add interrupt before human_review for human-in-the-loop
+    # 带检查点工具编译图
+    # 在 human_review 节点前添加中断，支持人机协同流程
     checkpointer = MemorySaver()
     return workflow.compile(
         checkpointer=checkpointer,
@@ -96,9 +96,9 @@ def create_research_graph(
 
 class ResearchWorkflow:
     """
-    Research workflow manager.
+    研究工作流管理器。
 
-    This class provides a high-level interface for running the research workflow.
+    该类为运行研究工作流提供了高层级接口。
     """
 
     def __init__(
@@ -109,13 +109,13 @@ class ResearchWorkflow:
         rapporteur: Rapporteur
     ):
         """
-        Initialize the research workflow.
+        初始化研究工作流。
 
-        Args:
-            coordinator: Coordinator agent
-            planner: Planner agent
-            researcher: Researcher agent
-            rapporteur: Rapporteur agent
+        参数:
+            coordinator: 协调器（Coordinator）智能体
+            planner: 规划器（Planner）智能体
+            researcher: 研究员（Researcher）智能体
+            rapporteur: 报告生成器（Rapporteur）智能体
         """
         self.coordinator = coordinator
         self.planner = planner
@@ -133,24 +133,24 @@ class ResearchWorkflow:
         output_format: str = "markdown"
     ) -> dict:
         """
-        Run the research workflow.
+        运行研究工作流（同步阻塞方式）。
 
-        Args:
-            query: Research query
-            max_iterations: Maximum number of research iterations
-            auto_approve: Whether to auto-approve the research plan
-            output_format: Output format for the final report ("markdown" or "html")
+        参数:
+            query: 研究查询语句
+            max_iterations: 研究的最大迭代次数（可选）
+            auto_approve: 是否自动批准研究计划
+            output_format: 最终报告的输出格式（支持 "markdown" 或 "html"）
 
-        Returns:
-            Final research state
+        返回:
+            最终的研究状态
         """
-        # Initialize state
+        # 初始化状态
         initial_state = self.coordinator.initialize_research(query, auto_approve=auto_approve, output_format=output_format)
 
         if max_iterations:
             initial_state['max_iterations'] = max_iterations
 
-        # Run the graph with thread configuration for checkpointer
+        # 使用线程配置运行图，适配检查点工具
         config = {"configurable": {"thread_id": "1"}}
         final_state = self.graph.invoke(initial_state, config=config)
 
@@ -164,24 +164,24 @@ class ResearchWorkflow:
         output_format: str = "markdown"
     ):
         """
-        Stream the research workflow execution.
+        以流式方式运行研究工作流。
 
-        Args:
-            query: Research query
-            max_iterations: Maximum number of research iterations
-            auto_approve: Whether to auto-approve the research plan
-            output_format: Output format for the final report ("markdown" or "html")
+        参数:
+            query: 研究查询语句
+            max_iterations: 研究的最大迭代次数（可选）
+            auto_approve: 是否自动批准研究计划
+            output_format: 最终报告的输出格式（支持 "markdown" 或 "html"）
 
-        Yields:
-            State updates during execution
+        生成器输出:
+            执行过程中的状态更新数据
         """
-        # Initialize state
+        # 初始化状态
         initial_state = self.coordinator.initialize_research(query, auto_approve=auto_approve, output_format=output_format)
 
         if max_iterations:
             initial_state['max_iterations'] = max_iterations
 
-        # Stream the graph execution with thread configuration for checkpointer
+        # 使用线程配置流式执行图，适配检查点工具
         config = {"configurable": {"thread_id": "1"}}
         for output in self.graph.stream(initial_state, config=config):
             yield output
@@ -195,20 +195,20 @@ class ResearchWorkflow:
         output_format: str = "markdown"
     ):
         """
-        Stream the research workflow execution with interactive human approval.
+        以交互式流式方式运行研究工作流，支持人工审批交互。
 
-        Args:
-            query: Research query
-            max_iterations: Maximum number of research iterations
-            auto_approve: Whether to auto-approve the research plan
-            human_approval_callback: Callback function for human approval
-                                   Should return (approved: bool, feedback: str)
-            output_format: Output format for the final report ("markdown" or "html")
+        参数:
+            query: 研究查询语句
+            max_iterations: 研究的最大迭代次数（可选）
+            auto_approve: 是否自动批准研究计划
+            human_approval_callback: 人工审批的回调函数
+                                     该函数应返回 (approved: bool, feedback: str)（是否批准：布尔值，反馈信息：字符串）
+            output_format: 最终报告的输出格式（支持 "markdown" 或 "html"）
 
-        Yields:
-            State updates during execution
+        生成器输出:
+            执行过程中的状态更新数据
         """
-        # Initialize state
+        # 初始化状态
         initial_state = self.coordinator.initialize_research(query, auto_approve=auto_approve, output_format=output_format)
 
         if max_iterations:
@@ -216,36 +216,36 @@ class ResearchWorkflow:
 
         config = {"configurable": {"thread_id": "1"}}
 
-        # Track if we've handled the approval
+        # 标记是否已处理审批流程
         approval_handled = False
 
-        # Stream execution
+        # 流式执行工作流
         for output in self.graph.stream(initial_state, config=config):
-            # Yield the output first
+            # 先输出当前状态更新
             yield output
 
-            # Check if we hit an interrupt
+            # 检查是否触发了中断，且审批流程尚未处理
             if "__interrupt__" in output and not approval_handled:
-                # Get the current state from the graph
+                # 从图中获取当前状态快照
                 current_snapshot = self.graph.get_state(config)
                 current_state = current_snapshot.values
 
-                # Check if this state needs approval (we interrupt after planning, before human_review)
+                # 检查当前状态是否需要审批（我们在规划后、人工审核前触发中断）
                 if isinstance(current_state, dict) and current_state.get('research_plan'):
-                    # If auto-approve, set plan_approved to True
+                    # 如果开启自动批准，直接将计划标记为已批准
                     if auto_approve:
                         current_state['plan_approved'] = True
                         current_state['user_feedback'] = None
                         self.graph.update_state(config, current_state)
-                    # Otherwise, ask user via callback
+                    # 否则，通过回调函数获取用户审批结果
                     elif human_approval_callback and not current_state.get('plan_approved', False):
-                        # Set the step for display
+                        # 设置当前步骤用于前端展示
                         current_state['current_step'] = 'awaiting_approval'
 
-                        # Call the approval callback
+                        # 调用审批回调函数
                         approved, feedback = human_approval_callback(current_state)
 
-                        # Update the state
+                        # 更新状态
                         if approved:
                             current_state['plan_approved'] = True
                             current_state['user_feedback'] = None
@@ -253,22 +253,22 @@ class ResearchWorkflow:
                             current_state['plan_approved'] = False
                             current_state['user_feedback'] = feedback
 
-                        # Update graph state
+                        # 更新图的状态
                         self.graph.update_state(config, current_state)
 
                     approval_handled = True
 
-                    # Continue from this point
+                    # 从当前中断点继续执行工作流
                     for continue_output in self.graph.stream(None, config=config):
                         yield continue_output
-                    return  # Exit after handling approval
+                    return  # 处理完审批后退出生成器
 
     def get_workflow_schema(self) -> dict:
         """
-        Get the workflow schema/structure.
+        获取工作流的结构描述（Schema）。
 
-        Returns:
-            Workflow schema dictionary
+        返回:
+            工作流结构描述字典
         """
         return {
             "nodes": [
@@ -302,16 +302,16 @@ class ResearchWorkflow:
 
     def visualize(self, output_path: Optional[str] = None) -> str:
         """
-        Visualize the workflow graph.
+        可视化工作流图。
 
-        Args:
-            output_path: Optional path to save the visualization
+        参数:
+            output_path: 可选参数，可视化文件的保存路径
 
-        Returns:
-            Path to the visualization file or visualization string
+        返回:
+            可视化文件的路径或可视化字符串（Mermaid 格式）
         """
         try:
-            # Try to get graph visualization
+            # 尝试获取图的可视化内容
             from langgraph.graph import Graph
 
             mermaid = self.graph.get_graph().draw_mermaid()

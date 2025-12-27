@@ -1,24 +1,24 @@
 """
-Research Workflow State Definition
+研究工作流状态定义
 
-This module defines the state structure for the research workflow.
+该模块定义了研究工作流的状态结构。
 """
 
 from typing import TypedDict, List, Annotated, Optional, Any
 import operator
 
 
-# Define state with Annotated fields for LangGraph
+# 定义带有 Annotated 字段的状态类，供 LangGraph 使用
 class ResearchState(TypedDict):
     """
-    Research workflow state for LangGraph.
+    用于 LangGraph 的研究工作流状态。
 
-    This state is passed between all nodes in the workflow.
+    该状态会在工作流的所有节点之间传递。
     """
     query: str
     research_plan: Optional[dict]
     plan_approved: bool
-    research_results: Annotated[list, operator.add]  # Accumulates results
+    research_results: Annotated[list, operator.add]  # 研究结果（累加型字段）
     current_task: Optional[dict]
     iteration_count: int
     max_iterations: int
@@ -26,48 +26,48 @@ class ResearchState(TypedDict):
     current_step: str
     needs_more_research: bool
     user_feedback: Optional[str]
-    output_format: str  # "markdown" or "html"
+    output_format: str  # 输出格式（支持 "markdown" 或 "html"）
 
 
 class PlanStructure(TypedDict):
     """
-    Structure for the research plan.
+    研究计划的数据结构。
     """
-    research_goal: str  # Overall research goal
-    sub_tasks: List[dict]  # List of subtasks
-    completion_criteria: str  # Criteria for completion
-    estimated_iterations: int  # Estimated number of iterations needed
+    research_goal: str  # 整体研究目标
+    sub_tasks: List[dict]  # 子任务列表
+    completion_criteria: str  # 完成判定标准
+    estimated_iterations: int  # 预估需要的迭代次数
 
 
 class SubTask(TypedDict):
     """
-    Structure for a research subtask.
+    研究子任务的数据结构
     """
-    task_id: int  # Unique task ID
-    description: str  # Task description
-    search_queries: List[str]  # List of search queries
-    sources: List[str]  # Data sources to use (tavily, arxiv, mcp)
-    status: str  # Task status (pending, in_progress, completed)
-    priority: Optional[int]  # Task priority
+    task_id: int  # 唯一任务 ID
+    description: str  # 任务描述
+    search_queries: List[str]  # 搜索查询语句列表
+    sources: List[str]  # 要使用的数据源（可选值：tavily、arxiv、mcp）
+    status: str  # 任务状态（可选值：pending(待执行)、in_progress(执行中)、completed(已完成)）
+    priority: Optional[int]  # 任务优先级（可选）
 
 
 class SearchResult(TypedDict):
     """
-    Structure for search results.
+    搜索结果的数据结构。
     """
-    task_id: int  # Associated task ID
-    query: str  # Search query
-    source: str  # Data source (tavily, arxiv, mcp)
-    results: List[dict]  # List of individual results
-    timestamp: str  # Timestamp of search
+    task_id: int  # 关联的任务ID
+    query: str  # 搜索查询语句
+    source: str  # 数据源（可选值：tavily、arxiv、mcp）
+    results: List[dict]  # 单个搜索结果的集合
+    timestamp: str  # 搜索时间戳
 
 
 class IndividualResult(TypedDict):
     """
-    Structure for an individual search result.
+    单个搜索结果的数据结构。
     """
-    title: str  # Result title
-    url: Optional[str]  # Result URL (if applicable)
-    snippet: str  # Result snippet/summary
-    relevance_score: Optional[float]  # Relevance score
-    metadata: Optional[dict]  # Additional metadata
+    title: str  # 结果标题
+    url: Optional[str]  # 结果URL（仅在适用场景下提供）
+    snippet: str  # 结果摘要/文本片段
+    relevance_score: Optional[float]  # 相关性评分（可选）
+    metadata: Optional[dict]  # 附加元数据（可选）
