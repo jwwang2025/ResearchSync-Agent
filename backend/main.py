@@ -26,5 +26,3 @@ if __name__ == "__main__":
     # 读取 DEV_RELOAD 环境变量，提升开发便利性
     reload_flag = os.getenv("DEV_RELOAD", "false").lower() == "true"
     start(host=os.getenv("HOST", "0.0.0.0"), port=int(os.getenv("PORT", "8000")), reload=reload_flag)
-
-
