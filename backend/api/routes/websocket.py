@@ -75,6 +75,8 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+# Active approval events for tasks (task_id -> asyncio.Event)
+active_approval_events: Dict[str, asyncio.Event] = {}
 
 
 async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
@@ -159,8 +161,52 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                     })
 
                     # 等待审批（通过 WebSocket 消息）
-                    # 这里需要实现一个等待机制
-                    break
+                    # 实现机制：为该任务创建 asyncio.Event 并等待前端通过 WebSocket 触发
+                    evt = asyncio.Event()
+                    active_approval_events[task_id] = evt
+                    # persist_task 会把不可序列化对象 repr，事件本身保存在内存字典，不持久化
+                    persist_task(task_id)
+                    try:
+                        # 等待批准，超时可由请求中设置（秒），默认 300s
+                        timeout = request_data.get("approval_timeout", 300)
+                        await asyncio.wait_for(evt.wait(), timeout=timeout)
+                    except asyncio.TimeoutError:
+                        # 审批超时：标记任务失败并通知客户端
+                        task["status"] = ResearchStatus.FAILED
+                        task["updated_at"] = datetime.now()
+                        persist_task(task_id)
+                        await manager.send_message(task_id, {
+                            "type": "error",
+                            "task_id": task_id,
+                            "message": "审批超时，研究终止"
+                        })
+                        # 清理事件并结束工作流执行
+                        active_approval_events.pop(task_id, None)
+                        return
+                    finally:
+                        # 移除事件引用（若未被移除）
+                        active_approval_events.pop(task_id, None)
+
+                    # 审批已触发：把最新的审批状态写回工作流，让 graph 继续执行
+                    try:
+                        updated_plan_approved = task.get('plan_approved', False)
+                        updated_feedback = task.get('user_feedback')
+                        # 从 workflow 的图中读取并更新状态（容错处理）
+                        try:
+                            snapshot = workflow.graph.get_state(cfg)
+                            current_snapshot_state = snapshot.values if hasattr(snapshot, "values") else snapshot
+                        except Exception:
+                            current_snapshot_state = {}
+                        if isinstance(current_snapshot_state, dict):
+                            current_snapshot_state['plan_approved'] = updated_plan_approved
+                            current_snapshot_state['user_feedback'] = updated_feedback
+                            try:
+                                workflow.graph.update_state(cfg, current_snapshot_state)
+                            except Exception:
+                                # 如果无法直接更新图状态，忽略并继续（graph 可能会基于 tasks_store 轮询）
+                                pass
+                    except Exception:
+                        pass
 
                 # 发送进度更新
                 elif step == 'researching':
@@ -278,8 +324,55 @@ async def websocket_research(websocket: WebSocket, task_id: str):
                         workflow = task.get("workflow")
 
                         if workflow:
-                            # 更新状态并继续工作流
-                            # 这里需要实现继续工作流的逻辑
+                            # 保存审批结果到任务状态
+                            task['plan_approved'] = bool(approved)
+                            task['user_feedback'] = feedback
+                            task['updated_at'] = datetime.now()
+                            persist_task(task_id)
+
+                            # 触发可能在等待的审批事件
+                            evt = active_approval_events.get(task_id)
+                            if isinstance(evt, asyncio.Event):
+                                try:
+                                    evt.set()
+                                except Exception:
+                                    pass
+
+                            # 尝试直接将审批结果写入 workflow 的状态，促使图继续执行
+                            try:
+                                cfg_obj = task.get('config')
+                                if cfg_obj:
+                                    try:
+                                        snapshot = workflow.graph.get_state(cfg_obj)
+                                        state_obj = snapshot.values if hasattr(snapshot, "values") else snapshot
+                                    except Exception:
+                                        state_obj = {}
+                                    if isinstance(state_obj, dict):
+                                        state_obj['plan_approved'] = task.get('plan_approved', False)
+                                        state_obj['user_feedback'] = task.get('user_feedback')
+                                        try:
+                                            workflow.graph.update_state(cfg_obj, state_obj)
+                                        except Exception:
+                                            pass
+                            except Exception:
+                                pass
+                            # 发布 Redis 通知（如果配置了 REDIS_URL），以便在使用 RQ worker 时触发 worker
+                            try:
+                                redis_url = os.getenv("REDIS_URL")
+                                if redis_url:
+                                    try:
+                                        import importlib
+                                        redis_mod = importlib.import_module("redis")
+                                        rcli = redis_mod.from_url(redis_url)
+                                        channel = f"tasks:updates:{task_id}"
+                                        message = {"task_id": task_id, "payload": {"plan_approved": task.get('plan_approved', False), "user_feedback": task.get('user_feedback')}, "updated_at": datetime.now().isoformat()}
+                                        rcli.publish(channel, json.dumps(message, ensure_ascii=False, default=repr))
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+
+                            # 通知前端已接收审批
                             await manager.send_message(task_id, {
                                 "type": "approval_received",
                                 "task_id": task_id,
