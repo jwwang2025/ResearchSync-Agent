@@ -82,19 +82,9 @@ def persist_task(task_id: str):
         return
     conn = sqlite3.connect(str(DB_PATH))
     try:
+        # 使用 _serialize_task 保证可序列化后直接写入 JSON
         serializable = _serialize_task(task)
-        try:
-            data_blob = json.dumps(serializable, ensure_ascii=False, default=repr)
-        except TypeError:
-            # Best-effort per-field fallback: replace values that still fail to serialize with repr
-            safe = {}
-            for k, v in serializable.items():
-                try:
-                    json.dumps(v, default=repr)
-                    safe[k] = v
-                except TypeError:
-                    safe[k] = repr(v)
-            data_blob = json.dumps(safe, ensure_ascii=False, default=repr)
+        data_blob = json.dumps(serializable, ensure_ascii=False, default=repr)
 
         conn.execute(
             "REPLACE INTO tasks (id, data, updated_at) VALUES (?, ?, ?)",
@@ -226,18 +216,13 @@ async def start_research(request: ResearchRequest):
     # 持久化新建任务
     persist_task(task_id)
 
-    try:
-        # 创建工作流（延迟到 WebSocket 连接时创建，避免阻塞）
-        # 这里只返回任务 ID，实际执行在 WebSocket 中
-        return ResearchResponse(
-            task_id=task_id,
-            status=ResearchStatus.PENDING,
-            message="研究任务已创建，请通过 WebSocket 连接获取实时更新"
-        )
-    except Exception as e:
-        # 清理任务记录
-        del tasks_store[task_id]
-        raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
+    # 创建工作流（延迟到 WebSocket 连接时创建，避免阻塞）
+    # 这里只返回任务 ID，实际执行在 WebSocket 中
+    return ResearchResponse(
+        task_id=task_id,
+        status=ResearchStatus.PENDING,
+        message="研究任务已创建，请通过 WebSocket 连接获取实时更新"
+    )
 
 
 @router.get("/research/{task_id}", response_model=TaskInfo)

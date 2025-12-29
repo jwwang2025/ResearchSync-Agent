@@ -78,11 +78,7 @@ async def shutdown_redis_pubsub():
     task = getattr(app.state, "_redis_listener_task", None)
     if task:
         task.cancel()
-        try:
-            await asyncio.sleep(0)  # allow cancellation
-        except asyncio.CancelledError:
-            # 允许取消错误在协程取消时被捕获
-            pass
+        await asyncio.sleep(0)  # allow cancellation
 
     conn = getattr(app.state, "_redis", None)
     if conn:

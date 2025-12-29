@@ -185,33 +185,30 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                         active_approval_events.pop(task_id, None)
 
                     # 审批已触发：把最新的审批状态写回工作流，让 graph 继续执行
+                    updated_plan_approved = task.get('plan_approved', False)
+                    updated_feedback = task.get('user_feedback')
+                    # 使用与 stream_interactive 相同的 graph_config 更新图状态
+                    # Prepare graph config and attempt to read/update snapshot once.
+                    gcfg = task.get("graph_config", {"configurable": {"thread_id": "1"}})
                     try:
-                        updated_plan_approved = task.get('plan_approved', False)
-                        updated_feedback = task.get('user_feedback')
-                        # 使用与 stream_interactive 相同的 graph_config 更新图状态
-                        # Prepare graph config and attempt to read/update snapshot once.
-                        gcfg = task.get("graph_config", {"configurable": {"thread_id": "1"}})
-                        try:
-                            snapshot = workflow.graph.get_state(gcfg)
-                            current_snapshot_state = snapshot.values if hasattr(snapshot, "values") else snapshot
-                            print(f"[run_research_workflow] Retrieved snapshot for task {task_id}: {repr(current_snapshot_state)}")
-                        except Exception as e:
-                            gcfg = {"configurable": {"thread_id": "1"}}
-                            current_snapshot_state = {}
-                            print(f"[run_research_workflow] Error getting graph snapshot for task {task_id}: {e}")
-
-                        if isinstance(current_snapshot_state, dict):
-                            current_snapshot_state['plan_approved'] = updated_plan_approved
-                            current_snapshot_state['user_feedback'] = updated_feedback
-                            try:
-                                workflow.graph.update_state(gcfg, current_snapshot_state)
-                                print(f"[run_research_workflow] Updated graph state for task {task_id} with plan_approved={updated_plan_approved}")
-                            except Exception as e:
-                                print(f"[run_research_workflow] Failed to update graph state for task {task_id}: {e}")
-                        else:
-                            print(f"[run_research_workflow] Current snapshot state is not a dict for task {task_id}: {repr(current_snapshot_state)}")
+                        snapshot = workflow.graph.get_state(gcfg)
+                        current_snapshot_state = snapshot.values if hasattr(snapshot, "values") else snapshot
+                        print(f"[run_research_workflow] Retrieved snapshot for task {task_id}: {repr(current_snapshot_state)}")
                     except Exception as e:
-                        print(f"[run_research_workflow] Unexpected error while writing approval for task {task_id}: {e}")
+                        gcfg = {"configurable": {"thread_id": "1"}}
+                        current_snapshot_state = {}
+                        print(f"[run_research_workflow] Error getting graph snapshot for task {task_id}: {e}")
+
+                    if isinstance(current_snapshot_state, dict):
+                        current_snapshot_state['plan_approved'] = updated_plan_approved
+                        current_snapshot_state['user_feedback'] = updated_feedback
+                        try:
+                            workflow.graph.update_state(gcfg, current_snapshot_state)
+                            print(f"[run_research_workflow] Updated graph state for task {task_id} with plan_approved={updated_plan_approved}")
+                        except Exception as e:
+                            print(f"[run_research_workflow] Failed to update graph state for task {task_id}: {e}")
+                    else:
+                        print(f"[run_research_workflow] Current snapshot state is not a dict for task {task_id}: {repr(current_snapshot_state)}")
 
                 # 发送进度更新
                 elif step == 'researching':
@@ -255,20 +252,17 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                 except Exception as e:
                     print(f"[run_research_workflow] Error reading output_dir from config for task {task_id}: {e}")
 
-            try:
-                os.makedirs(out_dir, exist_ok=True)
-                fmt = current_state.get('output_format', request_data.get("output_format", "markdown"))
-                ext = "html" if fmt == "html" else "md"
-                fname = f"research_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
-                fpath = os.path.join(out_dir, fname)
-                with open(fpath, "w", encoding="utf-8") as f:
-                    f.write(current_state['final_report'])
-                # 记录输出路径到任务并持久化
-                task['output_path'] = fpath
-                persist_task(task_id)
-                print(f"[run_research_workflow] Saved report to {fpath}")
-            except OSError as e:
-                print(f"[run_research_workflow] Failed to save report for task {task_id}: {e}")
+            os.makedirs(out_dir, exist_ok=True)
+            fmt = current_state.get('output_format', request_data.get("output_format", "markdown"))
+            ext = "html" if fmt == "html" else "md"
+            fname = f"research_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+            fpath = os.path.join(out_dir, fname)
+            with open(fpath, "w", encoding="utf-8") as f:
+                f.write(current_state['final_report'])
+            # 记录输出路径到任务并持久化
+            task['output_path'] = fpath
+            persist_task(task_id)
+            print(f"[run_research_workflow] Saved report to {fpath}")
 
             await manager.send_message(task_id, {
                 "type": "report_ready",
