@@ -47,6 +47,8 @@ class MCPClient:
         返回:
             包含搜索结果的字典
         """
+        # 网络请求相关错误由 httpx.HTTPError 捕获并转换为友好返回值；
+        # 其他异常将继续向上抛出，便于定位问题。
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -80,7 +82,7 @@ class MCPClient:
                     'total_results': len(results)
                 }
 
-        except Exception as e:
+        except httpx.HTTPError as e:
             return {
                 'query': query,
                 'source': 'mcp',
@@ -105,7 +107,7 @@ class MCPClient:
                 )
                 response.raise_for_status()
                 return response.json().get('tools', [])
-        except Exception as e:
+        except httpx.HTTPError:
             return []
 
     async def execute_tool(
@@ -132,7 +134,7 @@ class MCPClient:
                 )
                 response.raise_for_status()
                 return response.json()
-        except Exception as e:
+        except httpx.HTTPError as e:
             return {
                 'error': str(e),
                 'tool': tool_name

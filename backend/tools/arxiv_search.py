@@ -78,6 +78,7 @@ class ArxivSearch:
             }
 
         except Exception as e:
+            # 未知错误仍返回空结果并携带错误信息
             return {
                 'query': query,
                 'source': 'arxiv',
@@ -109,8 +110,8 @@ class ArxivSearch:
                 'pdf_url': paper.pdf_url,
                 'categories': paper.categories
             }
-
-        except Exception as e:
+        except (StopIteration, arxiv.exceptions.ArxivError):
+            # 未找到或 arXiv 客户端错误
             return None
 
     def download_pdf(self, paper_id: str, dirpath: str = "./") -> Optional[str]:
@@ -129,5 +130,5 @@ class ArxivSearch:
             paper = next(self.client.results(search))
             filepath = paper.download_pdf(dirpath=dirpath)
             return filepath
-        except Exception as e:
+        except (StopIteration, arxiv.exceptions.ArxivError):
             return None

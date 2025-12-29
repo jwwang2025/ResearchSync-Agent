@@ -27,23 +27,17 @@ class ConnectionManager:
         """接受 WebSocket 连接"""
         # Whitelist Origin header if WS_ALLOWED_ORIGINS is set; otherwise allow.
         origin = None
-        try:
-            for (k, v) in websocket.scope.get("headers", []):
-                if k.lower() == b"origin":
-                    origin = v.decode("utf-8", errors="ignore")
-                    break
-        except Exception:
-            origin = None
+        for (k, v) in websocket.scope.get("headers", []):
+            if k.lower() == b"origin":
+                origin = v.decode("utf-8", errors="ignore")
+                break
 
         allowed_env = os.getenv("WS_ALLOWED_ORIGINS")
         if allowed_env:
             allowed = [o.strip() for o in allowed_env.split(",") if o.strip()]
             if origin is None or origin not in allowed:
                 # Reject unknown origins with 1008 (policy violation)
-                try:
-                    await websocket.close(code=1008, reason="Origin not allowed")
-                except Exception:
-                    pass
+                await websocket.close(code=1008, reason="Origin not allowed")
                 # raise disconnect to stop further handling
                 raise WebSocketDisconnect()
 
@@ -112,6 +106,9 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
         # 保存工作流和配置（用于后续审批）
         task["workflow"] = workflow
         task["config"] = cfg
+        # Graph 使用固定的执行配置（与 ResearchWorkflow.stream_interactive 一致）
+        graph_config = {"configurable": {"thread_id": "1"}}
+        task["graph_config"] = graph_config
         persist_task(task_id)
 
         # 运行工作流（流式）
@@ -191,22 +188,30 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                     try:
                         updated_plan_approved = task.get('plan_approved', False)
                         updated_feedback = task.get('user_feedback')
-                        # 从 workflow 的图中读取并更新状态（容错处理）
+                        # 使用与 stream_interactive 相同的 graph_config 更新图状态
+                        # Prepare graph config and attempt to read/update snapshot once.
+                        gcfg = task.get("graph_config", {"configurable": {"thread_id": "1"}})
                         try:
-                            snapshot = workflow.graph.get_state(cfg)
+                            snapshot = workflow.graph.get_state(gcfg)
                             current_snapshot_state = snapshot.values if hasattr(snapshot, "values") else snapshot
-                        except Exception:
+                            print(f"[run_research_workflow] Retrieved snapshot for task {task_id}: {repr(current_snapshot_state)}")
+                        except Exception as e:
+                            gcfg = {"configurable": {"thread_id": "1"}}
                             current_snapshot_state = {}
+                            print(f"[run_research_workflow] Error getting graph snapshot for task {task_id}: {e}")
+
                         if isinstance(current_snapshot_state, dict):
                             current_snapshot_state['plan_approved'] = updated_plan_approved
                             current_snapshot_state['user_feedback'] = updated_feedback
                             try:
-                                workflow.graph.update_state(cfg, current_snapshot_state)
-                            except Exception:
-                                # 如果无法直接更新图状态，忽略并继续（graph 可能会基于 tasks_store 轮询）
-                                pass
-                    except Exception:
-                        pass
+                                workflow.graph.update_state(gcfg, current_snapshot_state)
+                                print(f"[run_research_workflow] Updated graph state for task {task_id} with plan_approved={updated_plan_approved}")
+                            except Exception as e:
+                                print(f"[run_research_workflow] Failed to update graph state for task {task_id}: {e}")
+                        else:
+                            print(f"[run_research_workflow] Current snapshot state is not a dict for task {task_id}: {repr(current_snapshot_state)}")
+                    except Exception as e:
+                        print(f"[run_research_workflow] Unexpected error while writing approval for task {task_id}: {e}")
 
                 # 发送进度更新
                 elif step == 'researching':
@@ -241,6 +246,29 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
             task["status"] = ResearchStatus.COMPLETED
             task["updated_at"] = datetime.now()
             persist_task(task_id)
+            # 尝试将最终报告保存到磁盘（outputs 目录或配置指定目录）
+            cfg_obj = task.get('config')
+            out_dir = "./outputs"
+            if cfg_obj:
+                try:
+                    out_dir = getattr(cfg_obj.workflow, "output_dir", out_dir)
+                except Exception as e:
+                    print(f"[run_research_workflow] Error reading output_dir from config for task {task_id}: {e}")
+
+            try:
+                os.makedirs(out_dir, exist_ok=True)
+                fmt = current_state.get('output_format', request_data.get("output_format", "markdown"))
+                ext = "html" if fmt == "html" else "md"
+                fname = f"research_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+                fpath = os.path.join(out_dir, fname)
+                with open(fpath, "w", encoding="utf-8") as f:
+                    f.write(current_state['final_report'])
+                # 记录输出路径到任务并持久化
+                task['output_path'] = fpath
+                persist_task(task_id)
+                print(f"[run_research_workflow] Saved report to {fpath}")
+            except OSError as e:
+                print(f"[run_research_workflow] Failed to save report for task {task_id}: {e}")
 
             await manager.send_message(task_id, {
                 "type": "report_ready",
@@ -266,10 +294,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                 "debug": debug_info
             })
             # Also log server-side
-            try:
-                print(f"[run_research_workflow] Task {task_id} finished without final_report. state={debug_info}")
-            except Exception:
-                pass
+            print(f"[run_research_workflow] Task {task_id} finished without final_report. state={debug_info}")
 
     except Exception as e:
         task["status"] = ResearchStatus.FAILED
@@ -333,44 +358,44 @@ async def websocket_research(websocket: WebSocket, task_id: str):
                             # 触发可能在等待的审批事件
                             evt = active_approval_events.get(task_id)
                             if isinstance(evt, asyncio.Event):
-                                try:
-                                    evt.set()
-                                except Exception:
-                                    pass
+                                evt.set()
 
                             # 尝试直接将审批结果写入 workflow 的状态，促使图继续执行
-                            try:
-                                cfg_obj = task.get('config')
-                                if cfg_obj:
+                            cfg_obj = task.get('graph_config', task.get('config'))
+                            if cfg_obj:
+                                try:
+                                    snapshot = workflow.graph.get_state(cfg_obj)
+                                    state_obj = snapshot.values if hasattr(snapshot, "values") else snapshot
+                                except Exception as e:
+                                    state_obj = {}
+                                    print(f"[websocket_research] Error retrieving snapshot for task {task_id}: {e}")
+                                if isinstance(state_obj, dict):
+                                    state_obj['plan_approved'] = task.get('plan_approved', False)
+                                    state_obj['user_feedback'] = task.get('user_feedback')
                                     try:
-                                        snapshot = workflow.graph.get_state(cfg_obj)
-                                        state_obj = snapshot.values if hasattr(snapshot, "values") else snapshot
-                                    except Exception:
-                                        state_obj = {}
-                                    if isinstance(state_obj, dict):
-                                        state_obj['plan_approved'] = task.get('plan_approved', False)
-                                        state_obj['user_feedback'] = task.get('user_feedback')
-                                        try:
-                                            workflow.graph.update_state(cfg_obj, state_obj)
-                                        except Exception:
-                                            pass
-                            except Exception:
-                                pass
+                                        workflow.graph.update_state(cfg_obj, state_obj)
+                                    except Exception as e:
+                                        print(f"[websocket_research] Failed to update workflow state for task {task_id}: {e}")
+
                             # 发布 Redis 通知（如果配置了 REDIS_URL），以便在使用 RQ worker 时触发 worker
-                            try:
-                                redis_url = os.getenv("REDIS_URL")
-                                if redis_url:
+                            redis_url = os.getenv("REDIS_URL")
+                            if redis_url:
+                                # 区分模块导入错误与发布错误，以便更精确地记录问题
+                                try:
+                                    import importlib
+                                    redis_mod = importlib.import_module("redis")
+                                    rcli = redis_mod.from_url(redis_url)
+                                except ImportError as e:
+                                    rcli = None
+                                    print(f"[websocket_research] Redis module not available: {e}")
+
+                                if rcli:
                                     try:
-                                        import importlib
-                                        redis_mod = importlib.import_module("redis")
-                                        rcli = redis_mod.from_url(redis_url)
                                         channel = f"tasks:updates:{task_id}"
                                         message = {"task_id": task_id, "payload": {"plan_approved": task.get('plan_approved', False), "user_feedback": task.get('user_feedback')}, "updated_at": datetime.now().isoformat()}
                                         rcli.publish(channel, json.dumps(message, ensure_ascii=False, default=repr))
-                                    except Exception:
-                                        pass
-                            except Exception:
-                                pass
+                                    except Exception as e:
+                                        print(f"[websocket_research] Failed to publish redis notification for task {task_id}: {e}")
 
                             # 通知前端已接收审批
                             await manager.send_message(task_id, {

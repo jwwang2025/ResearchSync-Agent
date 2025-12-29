@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
 from jinja2 import Environment, FileSystemLoader, Template
+from jinja2.exceptions import TemplateNotFound
 
 
 class PromptLoader:
@@ -63,7 +64,7 @@ class PromptLoader:
             template = self.env.get_template(f"{prompt_name}.md")
             rendered = template.render(**variables)
             return rendered
-        except Exception as e:
+        except TemplateNotFound as e:
             raise FileNotFoundError(
                 f"Could not load prompt '{prompt_name}' from {self.prompts_dir}: {e}"
             )

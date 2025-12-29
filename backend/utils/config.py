@@ -128,8 +128,9 @@ try:
             # Or support nested "websocket": {"allowed_origins": [...]}
             elif isinstance(_cfg.get("websocket"), dict) and _cfg["websocket"].get("allowed_origins"):
                 os.environ.setdefault("WS_ALLOWED_ORIGINS", ",".join(_cfg["websocket"].get("allowed_origins") or []))
-except Exception:
-    # Fail silently - config loading should not break runtime
+except (FileNotFoundError, json.JSONDecodeError, OSError):
+    # 仅对常见的文件读取/解析错误静默处理，避免在启动时中断运行
+    # 其他异常将会向上抛出以便定位问题
     pass
 
 

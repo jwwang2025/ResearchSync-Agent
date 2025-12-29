@@ -40,6 +40,8 @@ def run_research_job(task_id: str, request_data: Dict[str, Any]) -> int:
         llm_provider = request_data.get("llm_provider")
         llm_model = request_data.get("llm_model")
         workflow, cfg = create_workflow(llm_provider=llm_provider, llm_model=llm_model)
+        # Graph config must match stream_interactive's config
+        graph_config = {"configurable": {"thread_id": "1"}}
 
         # Run the workflow directly (remove dependency on CLI runner)
         current_state = None
@@ -102,17 +104,16 @@ def run_research_job(task_id: str, request_data: Dict[str, Any]) -> int:
                         # 审批通过：将结果写回工作流状态以继续执行
                         try:
                             current_state['plan_approved'] = True
-                            # 尝试更新图的状态（若可用）
+                            # 尝试使用 graph_config 更新图的状态（若可用）
                             try:
-                                cfg_obj = cfg
-                                snapshot = workflow.graph.get_state(cfg_obj)
+                                snapshot = workflow.graph.get_state(graph_config)
                                 snapshot_state = snapshot.values if hasattr(snapshot, "values") else snapshot
                             except Exception:
                                 snapshot_state = {}
                             if isinstance(snapshot_state, dict):
                                 snapshot_state.update(current_state)
                                 try:
-                                    workflow.graph.update_state(cfg_obj, snapshot_state)
+                                    workflow.graph.update_state(graph_config, snapshot_state)
                                 except Exception:
                                     pass
                         except Exception:

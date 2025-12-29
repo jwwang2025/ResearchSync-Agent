@@ -66,6 +66,7 @@ async def get_config():
             }
         }
     except Exception as e:
+        # 任何从配置加载中抛出的异常都视为服务器错误并返回 HTTP 500
         raise HTTPException(status_code=500, detail=f"加载配置失败: {str(e)}")
 
 
@@ -145,5 +146,6 @@ async def update_config(payload: ConfigUpdate):
 
         return {"message": "配置已更新并保存", "path": str(config_path)}
     except Exception as e:
+        # 捕获并返回配置更新过程中的错误
         raise HTTPException(status_code=500, detail=f"更新配置失败: {e}")
 

@@ -232,36 +232,48 @@ class ResearchWorkflow:
 
                 # 检查当前状态是否需要审批（我们在规划后、人工审核前触发中断）
                 if isinstance(current_state, dict) and current_state.get('research_plan'):
-                    # 如果开启自动批准，直接将计划标记为已批准
-                    if auto_approve:
-                        current_state['plan_approved'] = True
-                        current_state['user_feedback'] = None
-                        self.graph.update_state(config, current_state)
-                    # 否则，通过回调函数获取用户审批结果
+                    # 情况 A：已经由外部或之前设置为已批准，或开启自动审批 -> 继续内部处理
+                    if auto_approve or current_state.get('plan_approved', False):
+                        if not current_state.get('plan_approved', False):
+                            current_state['plan_approved'] = True
+                            current_state['user_feedback'] = None
+                            try:
+                                self.graph.update_state(config, current_state)
+                            except Exception as e:
+                                print(f"[stream_interactive] Failed to update state for auto_approve task: {e}")
+                        approval_handled = True
+
+                    # 情况 B：提供了同步回调（human_approval_callback），则同步调用以获取审批结果
                     elif human_approval_callback and not current_state.get('plan_approved', False):
-                        # 设置当前步骤用于前端展示
                         current_state['current_step'] = 'awaiting_approval'
+                        try:
+                            approved, feedback = human_approval_callback(current_state)
+                        except Exception as e:
+                            approved, feedback = False, None
+                            print(f"[stream_interactive] human_approval_callback error: {e}")
 
-                        # 调用审批回调函数
-                        approved, feedback = human_approval_callback(current_state)
-
-                        # 更新状态
                         if approved:
                             current_state['plan_approved'] = True
                             current_state['user_feedback'] = None
                         else:
                             current_state['plan_approved'] = False
                             current_state['user_feedback'] = feedback
+                        try:
+                            self.graph.update_state(config, current_state)
+                        except Exception as e:
+                            print(f"[stream_interactive] Failed to write approval result to graph: {e}")
+                        approval_handled = True
 
-                        # 更新图的状态
-                        self.graph.update_state(config, current_state)
+                    # 情况 C：既没有自动批准也没有回调，且未被外部批准 -> 停留在中断点，等待外部（例如 WebSocket）写回批准
+                    else:
+                        # 不标记 approval_handled，不继续内部流；让调用者有机会通过外部路径写入 plan_approved 并再次驱动生成器
+                        continue
 
-                    approval_handled = True
-
-                    # 从当前中断点继续执行工作流
-                    for continue_output in self.graph.stream(None, config=config):
-                        yield continue_output
-                    return  # 处理完审批后退出生成器
+                    if approval_handled:
+                        # 从当前中断点继续执行工作流
+                        for continue_output in self.graph.stream(None, config=config):
+                            yield continue_output
+                        return  # 处理完审批后退出生成器
 
     def get_workflow_schema(self) -> dict:
         """

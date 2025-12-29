@@ -32,7 +32,7 @@ try:
     import redis
     from rq import Queue
     RQ_AVAILABLE = True
-except Exception:
+except ImportError:
     RQ_AVAILABLE = False
 
 router = APIRouter()
@@ -68,7 +68,7 @@ def load_all_tasks() -> Dict[str, Dict[str, Any]]:
             tid, data = row
             try:
                 tasks[tid] = json.loads(data)
-            except Exception:
+            except json.JSONDecodeError:
                 tasks[tid] = {"task_id": tid, "status": "unknown", "request": {}}
     finally:
         conn.close()
@@ -92,7 +92,7 @@ def persist_task(task_id: str):
                 try:
                     json.dumps(v, default=repr)
                     safe[k] = v
-                except Exception:
+                except TypeError:
                     safe[k] = repr(v)
             data_blob = json.dumps(safe, ensure_ascii=False, default=repr)
 
