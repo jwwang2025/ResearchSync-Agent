@@ -9,6 +9,7 @@ import { Card, List, Typography, Tag, Button, Empty, Spin, message } from 'antd'
 import { ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { researchApi } from '../services/api';
 import type { TaskInfo } from '../types/research';
+import { ResearchStatus } from '../types/research';
 
 const { Title, Text } = Typography;
 
@@ -99,7 +100,7 @@ const Tasks: React.FC = () => {
             renderItem={(task) => (
               <List.Item
                 actions={[
-                  task.status === 'running' || task.status === 'pending' ? (
+                  task.status === ResearchStatus.RESEARCHING || task.status === ResearchStatus.PENDING ? (
                     <Button
                       key="cancel"
                       type="text"
@@ -118,10 +119,10 @@ const Tasks: React.FC = () => {
                       <Text strong>{task.query}</Text>
                       <Tag
                         color={
-                          task.status === 'completed' ? 'success' :
-                          task.status === 'running' ? 'processing' :
-                          task.status === 'failed' ? 'error' :
-                          task.status === 'cancelled' ? 'default' :
+                          task.status === ResearchStatus.COMPLETED ? 'success' :
+                          task.status === ResearchStatus.RESEARCHING ? 'processing' :
+                          task.status === ResearchStatus.FAILED ? 'error' :
+                          task.status === ResearchStatus.CANCELLED ? 'default' :
                           'warning'
                         }
                         style={{ marginLeft: 8 }}
