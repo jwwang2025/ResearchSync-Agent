@@ -5,13 +5,14 @@
  */
 
 import React from 'react';
-import { Layout, Typography } from 'antd';
+import { Layout, Typography, Card, Button } from 'antd';
 import { ResearchForm } from './components/Research/ResearchForm';
 import { ResearchProgress } from './components/Research/ResearchProgress';
 import { ResearchWSExample } from './components/Research/ResearchWSExample';
 import { useWebSocket } from './hooks/useWebSocket';
 import { researchApi } from './services/api';
 import type { ResearchRequest, ProgressMessage, PlanReadyMessage, ReportReadyMessage } from './types/research';
+import NavBar from './components/Header/NavBar';
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -26,7 +27,6 @@ function App() {
 
   const { connected, onMessage, approvePlan } = useWebSocket(taskId);
 
-  // 注册 WebSocket 消息处理器
   React.useEffect(() => {
     if (!connected) return;
 
@@ -83,45 +83,49 @@ function App() {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ background: '#001529', padding: '0 24px' }}>
-        <Title level={3} style={{ color: '#fff', margin: '16px 0' }}>
-          ResearchSync-Agent
-        </Title>
+    <Layout className="app-root">
+      <Header className="app-header">
+        <NavBar />
       </Header>
-      <Content style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-        <ResearchForm onSubmit={handleSubmit} loading={loading} />
+      <Content className="app-content">
+        <div className="hero">
+          <div className="hero-card">
+            <div className="hero-title">用 AI 协同推进研究</div>
+            <div className="hero-desc">快速创建研究任务、实时跟踪进度并生成结构化报告。支持多种 LLM 提供商和可配置工作流。</div>
+            <div className="muted">提示：在表单中填写问题并开始研究，借助实时 WebSocket 获取进展。</div>
+          </div>
+          <Card className="hero-card main-card">
+            <ResearchForm onSubmit={handleSubmit} loading={loading} />
+          </Card>
+        </div>
 
         {taskId && (
-          <div style={{ marginTop: '24px' }}>
+          <div className="section">
             <ResearchProgress progress={progress || undefined} step={currentStep} />
 
             {plan && (
-              <div style={{ marginTop: '24px' }}>
-                <h3>研究计划</h3>
-                <pre style={{ background: '#f5f5f5', padding: '16px', borderRadius: '4px' }}>
-                  {JSON.stringify(plan.plan, null, 2)}
-                </pre>
-                <div style={{ marginTop: '16px' }}>
-                  <button onClick={() => handleApprovePlan(true)}>批准</button>
-                  <button onClick={() => handleApprovePlan(false, '请修改计划')} style={{ marginLeft: '8px' }}>
-                    拒绝
-                  </button>
+              <div className="section">
+                <Title level={5}>研究计划</Title>
+                <pre className="plan-pre">{JSON.stringify(plan.plan, null, 2)}</pre>
+                <div style={{ marginTop: 12 }}>
+                  <Button type="primary" onClick={() => handleApprovePlan(true)}>批准</Button>
+                  <Button style={{ marginLeft: 8 }} onClick={() => handleApprovePlan(false, '请修改计划')}>拒绝</Button>
                 </div>
               </div>
             )}
 
             {report && (
-              <div style={{ marginTop: '24px' }}>
-                <h3>研究报告</h3>
-                <div style={{ background: '#f5f5f5', padding: '16px', borderRadius: '4px' }}>
-                  <pre style={{ whiteSpace: 'pre-wrap' }}>{report}</pre>
+              <div className="section">
+                <Title level={5}>研究报告</Title>
+                <div className="plan-pre">
+                  <pre style={{ whiteSpace: 'pre-wrap', margin:0 }}>{report}</pre>
                 </div>
               </div>
             )}
           </div>
         )}
-        <div style={{ marginTop: 24 }}>
+
+        <div className="section">
           <ResearchWSExample />
         </div>
       </Content>

@@ -13,6 +13,11 @@ from .routes import research, tasks, websocket, config
 import os
 import asyncio
 import json
+
+# 使用 redis.asyncio 作为异步客户端
+import redis.asyncio as aioredis
+
+
 # 创建 FastAPI 应用 
 app = FastAPI(
     title="ResearchSync-Agent API",
@@ -28,13 +33,6 @@ app = FastAPI(
 async def startup_redis_pubsub():
     redis_url = os.getenv("REDIS_URL")
     if not redis_url:
-        return
-
-    try:
-        # 使用 redis.asyncio 作为异步客户端
-        import redis.asyncio as aioredis
-    except ImportError:
-        # 如果没有异步 redis，跳过订阅（在非生产环境可能不可用）
         return
 
     app.state._redis = aioredis.from_url(redis_url)
