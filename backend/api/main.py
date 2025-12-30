@@ -3,20 +3,18 @@ FastAPI Application Entry Point
 
 FastAPI 应用主入口，提供 RESTful API 和 WebSocket 支持。
 """
-
+import os
+import asyncio
+import json
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 
-from .routes import research, tasks, websocket, config
-import os
-import asyncio
-import json
-
 # 使用 redis.asyncio 作为异步客户端
 import redis.asyncio as aioredis
 
+from .routes import research, tasks, websocket, config
 
 # 创建 FastAPI 应用 
 app = FastAPI(
