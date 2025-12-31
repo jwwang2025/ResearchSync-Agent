@@ -324,8 +324,6 @@ class ResearchWorkflow:
         """
         try:
             # 尝试获取图的可视化内容
-            from langgraph.graph import Graph
-
             mermaid = self.graph.get_graph().draw_mermaid()
 
             if output_path:

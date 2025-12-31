@@ -63,12 +63,9 @@ def run_research_job(task_id: str, request_data: Dict[str, Any]) -> int:
                     else:
                         current_state = state
                     # 如果进入人工审批步骤且未开启自动批准，则在 DB 中轮询等待审批结果
-                    try:
-                        if isinstance(current_state, dict):
-                            step = current_state.get('current_step', '')
-                        else:
-                            step = ''
-                    except Exception:
+                    if isinstance(current_state, dict):
+                        step = current_state.get('current_step', '')
+                    else:
                         step = ''
 
                     if step == 'awaiting_approval' and not request_data.get('auto_approve', False):

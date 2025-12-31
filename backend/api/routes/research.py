@@ -4,6 +4,7 @@ Research API Routes
 研究任务相关的 RESTful API 路由，带有任务持久化支持（SQLite）和与 WebSocket 的集成点。
 """
 
+import os
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 import uuid
@@ -25,7 +26,6 @@ from ...agents.planner import Planner
 from ...agents.researcher import Researcher
 from ...agents.rapporteur import Rapporteur
 from ...workflow.graph import ResearchWorkflow
-import os
 
 try:
     # Optional RQ support
@@ -45,33 +45,29 @@ DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 def init_db():
     """初始化 SQLite 数据库和表（如果不存在）。"""
     conn = sqlite3.connect(str(DB_PATH))
-    try:
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS tasks (
-            id TEXT PRIMARY KEY,
-            data TEXT,
-            updated_at TEXT
-        )
-        """)
-        conn.commit()
-    finally:
-        conn.close()
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        data TEXT,
+        updated_at TEXT
+    )
+    """)
+    conn.commit()
+    conn.close()
 
 
 def load_all_tasks() -> Dict[str, Dict[str, Any]]:
     """从数据库加载所有任务到内存字典（datetime 字段为 ISO 字符串）。"""
     tasks: Dict[str, Dict[str, Any]] = {}
     conn = sqlite3.connect(str(DB_PATH))
-    try:
-        cur = conn.execute("SELECT id, data FROM tasks")
-        for row in cur.fetchall():
-            tid, data = row
-            try:
-                tasks[tid] = json.loads(data)
-            except json.JSONDecodeError:
-                tasks[tid] = {"task_id": tid, "status": "unknown", "request": {}}
-    finally:
-        conn.close()
+    cur = conn.execute("SELECT id, data FROM tasks")
+    for row in cur.fetchall():
+        tid, data = row
+        try:
+            tasks[tid] = json.loads(data)
+        except json.JSONDecodeError:
+            tasks[tid] = {"task_id": tid, "status": "unknown", "request": {}}
+    conn.close()
     return tasks
 
 
@@ -81,18 +77,16 @@ def persist_task(task_id: str):
     if not task:
         return
     conn = sqlite3.connect(str(DB_PATH))
-    try:
-        # 使用 _serialize_task 保证可序列化后直接写入 JSON
-        serializable = _serialize_task(task)
-        data_blob = json.dumps(serializable, ensure_ascii=False, default=repr)
+    # 使用 _serialize_task 保证可序列化后直接写入 JSON
+    serializable = _serialize_task(task)
+    data_blob = json.dumps(serializable, ensure_ascii=False, default=repr)
 
-        conn.execute(
-            "REPLACE INTO tasks (id, data, updated_at) VALUES (?, ?, ?)",
-            (task_id, data_blob, datetime.now().isoformat())
-        )
-        conn.commit()
-    finally:
-        conn.close()
+    conn.execute(
+        "REPLACE INTO tasks (id, data, updated_at) VALUES (?, ?, ?)",
+        (task_id, data_blob, datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
 
 
 def _serialize_task(task: Dict[str, Any]) -> Dict[str, Any]:

@@ -247,10 +247,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
             cfg_obj = task.get('config')
             out_dir = "./outputs"
             if cfg_obj:
-                try:
-                    out_dir = getattr(cfg_obj.workflow, "output_dir", out_dir)
-                except Exception as e:
-                    print(f"[run_research_workflow] Error reading output_dir from config for task {task_id}: {e}")
+                out_dir = getattr(cfg_obj.workflow, "output_dir", out_dir)
 
             os.makedirs(out_dir, exist_ok=True)
             fmt = current_state.get('output_format', request_data.get("output_format", "markdown"))
@@ -276,11 +273,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
             persist_task(task_id)
 
             # No final report produced — include diagnostic snapshot for debugging
-            debug_info = None
-            try:
-                debug_info = repr(current_state)
-            except Exception:
-                debug_info = "unserializable current_state"
+            debug_info = repr(current_state)
             await manager.send_message(task_id, {
                 "type": "error",
                 "task_id": task_id,
