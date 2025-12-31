@@ -25,7 +25,7 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket, task_id: str):
         """接受 WebSocket 连接"""
-        # Whitelist Origin header if WS_ALLOWED_ORIGINS is set; otherwise allow.
+        # 若环境变量 WS_ALLOWED_ORIGINS 已配置，则对 Origin 请求头进行白名单校验；未配置则允许所有来源。
         origin = None
         for (k, v) in websocket.scope.get("headers", []):
             if k.lower() == b"origin":
@@ -36,9 +36,9 @@ class ConnectionManager:
         if allowed_env:
             allowed = [o.strip() for o in allowed_env.split(",") if o.strip()]
             if origin is None or origin not in allowed:
-                # Reject unknown origins with 1008 (policy violation)
+                # 以 1008 状态码（策略违规）拒绝未知来源的连接
                 await websocket.close(code=1008, reason="Origin not allowed")
-                # raise disconnect to stop further handling
+                # 抛出连接断开异常，终止后续的处理逻辑
                 raise WebSocketDisconnect()
 
         await websocket.accept()
@@ -69,7 +69,7 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
-# Active approval events for tasks (task_id -> asyncio.Event)
+# 任务的活跃审批事件（任务ID -> 异步IO事件对象）
 active_approval_events: Dict[str, asyncio.Event] = {}
 
 

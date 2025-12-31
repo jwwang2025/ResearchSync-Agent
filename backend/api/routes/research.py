@@ -67,6 +67,11 @@ def load_all_tasks() -> Dict[str, Dict[str, Any]]:
     return tasks
 
 
+# 初始化 DB 并加载现有任务
+init_db()
+tasks_store: Dict[str, Dict[str, Any]] = load_all_tasks()
+
+
 def persist_task(task_id: str):
     """将指定任务写入数据库（插入或替换）。"""
     task = tasks_store.get(task_id)
@@ -108,11 +113,6 @@ def _serialize_task(task: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in task.items():
         out[k] = _make_serializable(v)
     return out
-
-
-# 初始化 DB 并加载现有任务
-init_db()
-tasks_store: Dict[str, Dict[str, Any]] = load_all_tasks()
 
 
 def create_workflow(llm_provider: str = None, llm_model: str = None):

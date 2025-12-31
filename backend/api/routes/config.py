@@ -89,12 +89,12 @@ async def list_models(provider: str):
 @router.put("/config")
 async def update_config(payload: ConfigUpdate):
     """
-    更新运行时配置并将其保存到仓库根目录的 `config.json`（供 CLI 使用）。
-    该接口会更新内存配置并写入文件；某些配置（如 LLM 提供商）也会同步到进程环境变量以立即生效。
+    更新运行时配置。
+    该接口会更新内存配置；某些配置（如 LLM 提供商）也会同步到进程环境变量以立即生效。
     """
     cfg = load_config_from_env()
 
-    # Apply LLM updates
+    # 应用大语言模型（LLM）相关配置更新
     if payload.llm:
         if payload.llm.provider:
             os.environ["LLM_PROVIDER"] = payload.llm.provider
@@ -107,7 +107,7 @@ async def update_config(payload: ConfigUpdate):
         if payload.llm.max_tokens is not None:
             cfg.llm.max_tokens = payload.llm.max_tokens
 
-    # Apply search updates
+    # 应用搜索相关配置更新
     if payload.search:
         if payload.search.tavily_api_key is not None:
             cfg.search.tavily_api_key = payload.search.tavily_api_key
@@ -119,7 +119,7 @@ async def update_config(payload: ConfigUpdate):
             cfg.search.mcp_api_key = payload.search.mcp_api_key
             os.environ["MCP_API_KEY"] = payload.search.mcp_api_key or ""
 
-    # Apply workflow updates
+    # 应用工作流相关配置更新
     if payload.workflow:
         if payload.workflow.max_iterations is not None:
             cfg.workflow.max_iterations = payload.workflow.max_iterations
@@ -131,7 +131,7 @@ async def update_config(payload: ConfigUpdate):
             cfg.workflow.output_dir = payload.workflow.output_dir
             os.environ["OUTPUT_DIR"] = payload.workflow.output_dir
 
-    # Persist to repository root config.json for CLI compatibility
+    # 将配置持久化到仓库根目录的 config.json 文件，以兼容命令行工具（CLI）
     repo_root = Path(__file__).parents[3]
     config_path = repo_root / "config.json"
     saved = save_config_to_file(cfg, str(config_path))
