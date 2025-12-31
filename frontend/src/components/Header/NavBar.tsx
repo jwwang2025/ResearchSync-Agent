@@ -6,11 +6,10 @@ import type { MenuProps } from 'antd';
 const { useBreakpoint } = Grid;
 
 const menuItems: MenuProps['items'] = [
-  { key: 'home', label: <a href="#/">首页</a> },
-  { key: 'tasks', label: <a href="#/tasks">任务</a> },
-  { key: 'history', label: <a href="#/history">历史</a> },
-  { key: 'docs', label: <a href="#/docs">文档</a> },
-  { key: 'settings', label: <a href="#/settings">设置</a> },
+  { key: 'home', label: <Link to="/">首页</Link> },
+  { key: 'tasks', label: <Link to="/tasks">任务</Link> },
+  { key: 'history', label: <Link to="/history">历史</Link> },
+  { key: 'settings', label: <Link to="/settings">设置</Link> },
 ];
 
 const NavBar: React.FC = () => {
@@ -26,13 +25,13 @@ const NavBar: React.FC = () => {
         <div className="app-logo">RS</div>
         <div className="nav-brand">
           <div className="app-title-text">ResearchSync-Agent</div>
-          <div className="app-subtitle muted">研究任务 · 实时同步</div>
+          <div className="app-subtitle">AI 研究助手</div>
         </div>
       </div>
 
       <div className="nav-right">
         {screens.md ? (
-          <Menu mode="horizontal" theme="dark" selectable={false} items={menuItems} className="nav-menu" />
+          <Menu mode="horizontal" selectable={false} items={menuItems} className="nav-menu" />
         ) : (
           <>
             <Button type="text" className="nav-toggle" onClick={showDrawer} aria-label="打开菜单">
@@ -41,10 +40,10 @@ const NavBar: React.FC = () => {
             <Drawer placement="right" onClose={closeDrawer} open={open} bodyStyle={{ padding: 0 }}>
               <div style={{ padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <Avatar style={{ background: '#6c8cff' }}>RS</Avatar>
+                  <Avatar style={{ background: 'var(--accent-primary)' }}>RS</Avatar>
                   <div>
-                    <div style={{ fontWeight: 700 }}>ResearchSync-Agent</div>
-                    <div className="muted" style={{ fontSize: 12 }}>实时研究与任务管理</div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>ResearchSync-Agent</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>实时研究与任务管理</div>
                   </div>
                 </div>
                 <Menu mode="vertical" selectable={false} items={menuItems} onClick={closeDrawer} />

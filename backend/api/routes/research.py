@@ -27,13 +27,9 @@ from ...agents.researcher import Researcher
 from ...agents.rapporteur import Rapporteur
 from ...workflow.graph import ResearchWorkflow
 
-try:
-    # Optional RQ support
-    import redis
-    from rq import Queue
-    RQ_AVAILABLE = True
-except ImportError:
-    RQ_AVAILABLE = False
+# RQ 支持
+import redis
+from rq import Queue
 
 router = APIRouter()
 
@@ -92,7 +88,7 @@ def persist_task(task_id: str):
 def _serialize_task(task: Dict[str, Any]) -> Dict[str, Any]:
     """将不可序列化字段（如 datetime）转换为可序列化形式。"""
     def _make_serializable(obj):
-        # primitives
+        # 基本数据类型
         if obj is None or isinstance(obj, (str, int, float, bool)):
             return obj
         if isinstance(obj, datetime):
@@ -101,8 +97,8 @@ def _serialize_task(task: Dict[str, Any]) -> Dict[str, Any]:
             return {k: _make_serializable(v) for k, v in obj.items()}
         if isinstance(obj, (list, tuple, set)):
             return [_make_serializable(v) for v in obj]
-        # For any other object types (including complex runtime objects like ResearchWorkflow),
-        # return a stable string representation to avoid JSON serialization errors.
+        # 对于其他所有对象类型（包括复杂的运行时对象，如 ResearchWorkflow），
+        # 返回一个稳定的字符串表示形式，以避免 JSON 序列化错误。
         try:
             return repr(obj)
         except Exception:
@@ -191,9 +187,9 @@ async def start_research(request: ResearchRequest):
     # 持久化新建任务
     persist_task(task_id)
 
-    # 如果配置了 Redis 并且 RQ 可用，则入队到 Redis，由 worker 进程执行
+    # 如果配置了 Redis，则入队到 Redis，由 worker 进程执行
     redis_url = os.getenv("REDIS_URL")
-    if redis_url and RQ_AVAILABLE:
+    if redis_url:
         conn = redis.from_url(redis_url)
         q = Queue("research", connection=conn)
         # 导入延迟任务函数路径
