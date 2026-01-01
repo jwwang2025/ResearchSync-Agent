@@ -27,23 +27,24 @@ class Coordinator:
 
     def __init__(self, llm: BaseLLM):
         """
-        Initialize the Coordinator.
+        初始化协调器实例
 
-        Args:
-            llm: Language model instance for processing
+        参数:
+            llm: 用于处理文本的语言模型实例
         """
         self.llm = llm
         self.prompt_loader = PromptLoader()
 
     def classify_query(self, user_query: str) -> str:
         """
-        Classify the user query type.
 
-        Args:
-            user_query: User's input query
+        对用户查询类型进行分类
 
-        Returns:
-            Query type: 'GREETING', 'INAPPROPRIATE', or 'RESEARCH'
+        参数:
+            user_query: 用户输入的查询内容
+
+        返回:
+            查询类型：'GREETING'（问候）、'INAPPROPRIATE'（不当内容）或 'RESEARCH'（研究类）
         """
         prompt = self.prompt_loader.load(
             'coordinator_classify_query',
@@ -52,23 +53,23 @@ class Coordinator:
 
         query_type = self.llm.generate(prompt).strip().upper()
 
-        # Validate classification
+        # 验证分类结果的有效性
         if query_type not in ['GREETING', 'INAPPROPRIATE', 'RESEARCH']:
-            # Default to RESEARCH if classification is unclear
+            # 如果分类结果不明确，默认归类为研究类查询
             query_type = 'RESEARCH'
 
         return query_type
 
     def handle_simple_query(self, user_query: str, query_type: str) -> str:
         """
-        Handle simple queries that don't require research.
+        处理不需要进行研究的简单查询
 
-        Args:
-            user_query: User's input query
-            query_type: Type of query ('GREETING' or 'INAPPROPRIATE')
+        参数:
+            user_query: 用户输入的查询内容
+            query_type: 查询类型（'GREETING' 问候类 或 'INAPPROPRIATE' 不当内容类）
 
-        Returns:
-            Direct response to the user
+        返回:
+            给用户的直接响应内容
         """
         prompt = self.prompt_loader.load(
             'coordinator_simple_response',
@@ -81,39 +82,39 @@ class Coordinator:
 
     def initialize_research(self, user_query: str, auto_approve: bool = False, output_format: str = "markdown") -> Dict[str, Any]:
         """
-        Initialize a new research task.
+        初始化一个新的研究任务
 
-        Args:
-            user_query: User's research question/request
-            auto_approve: Whether to auto-approve the research plan
-            output_format: Output format for the final report ("markdown" or "html")
+        参数:
+            user_query: 用户的研究问题/需求
+            auto_approve: 是否自动批准研究计划
+            output_format: 最终报告的输出格式（"markdown" 或 "html"）
 
-        Returns:
-            Initialized research state
+        返回:
+            初始化后的研究状态
         """
-        # Classify the query first
+        # 先对查询进行分类
         query_type = self.classify_query(user_query)
 
-        # Create initial state
+        # 创建初始状态
         state = {
             'query': user_query,
-            'query_type': query_type,  # Add query type to state
+            'query_type': query_type,  # 将查询类型存入状态
             'research_plan': None,
             'plan_approved': False,
             'research_results': [],
             'current_task': None,
             'iteration_count': 0,
-            'max_iterations': 5,  # Default maximum iterations
+            'max_iterations': 5,  # 默认最大迭代次数
             'final_report': None,
             'current_step': 'initializing',
             'needs_more_research': True,
             'user_feedback': None,
-            'auto_approve_plan': auto_approve,  # Add auto_approve flag to state
-            'simple_response': None,  # For storing direct responses to simple queries
-            'output_format': output_format  # Add output format to state
+            'auto_approve_plan': auto_approve,  # 将自动批准标识存入状态
+            'simple_response': None,  # 用于存储对简单查询的直接响应
+            'output_format': output_format  # 将输出格式存入状态
         }
 
-        # Handle simple queries directly
+        # 直接处理简单查询
         if query_type in ['GREETING', 'INAPPROPRIATE']:
             state['simple_response'] = self.handle_simple_query(user_query, query_type)
             state['current_step'] = 'completed'
@@ -123,19 +124,19 @@ class Coordinator:
 
     def process_user_input(self, state: Dict[str, Any], user_input: str) -> Dict[str, Any]:
         """
-        Process user feedback or input.
+        处理用户的反馈或输入内容
 
-        Args:
-            state: Current research state
-            user_input: User's input text
+        参数:
+            state: 当前的研究状态
+            user_input: 用户输入的文本内容
 
-        Returns:
-            Updated research state
+        返回:
+            更新后的研究状态
         """
-        # Store user feedback
+        # 存储用户反馈
         state['user_feedback'] = user_input
 
-        # Analyze user intent
+        # 分析用户意图
         prompt = self.prompt_loader.load(
             'coordinator_analyze_intent',
             user_input=user_input,
@@ -144,7 +145,7 @@ class Coordinator:
 
         intent = self.llm.generate(prompt).strip().upper()
 
-        # Update state based on intent
+        # 根据用户意图更新状态
         if intent == "APPROVE":
             state['plan_approved'] = True
         elif intent == "MODIFY":
@@ -153,32 +154,32 @@ class Coordinator:
         elif intent == "REJECT":
             state['plan_approved'] = False
             state['research_plan'] = None
-        # For QUESTION, we keep state as is and let Planner handle it
+        # 对于QUESTION（提问）意图，保持状态不变，由规划器进行处理
 
         return state
 
     def delegate_to_planner(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Delegate the task to Planner.
+        将任务委派给规划器（Planner）
 
-        Args:
-            state: Current research state
+        参数:
+            state: 当前的研究状态
 
-        Returns:
-            Updated research state with delegation info
+        返回:
+            包含委派信息的更新后研究状态
         """
         state['current_step'] = 'planning'
         return state
 
     def handle_completion(self, state: Dict[str, Any]) -> Dict:
         """
-        Handle workflow completion.
+        处理工作流的完成操作
 
-        Args:
-            state: Final research state
+        参数:
+            state: 最终的研究状态
 
-        Returns:
-            Completion summary
+        返回:
+            完成情况汇总
         """
         return {
             'status': 'completed',
@@ -189,5 +190,5 @@ class Coordinator:
         }
 
     def __repr__(self) -> str:
-        """String representation."""
+        """字符串表示形式。"""
         return f"Coordinator(llm={self.llm})"
