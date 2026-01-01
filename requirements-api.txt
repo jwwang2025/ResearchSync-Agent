@@ -4,9 +4,9 @@ uvicorn[standard]>=0.24.0
 websockets>=12.0
 python-multipart>=0.0.6
 
-# 如果需要使用 Celery 进行异步任务处理
-# celery>=5.3.0
-# redis>=5.0.0
+# 如果需要使用 RQ 进行异步任务处理
+rq>=1.15.0
+redis>=5.0.0
 
 # 如果需要使用数据库
 # sqlalchemy>=2.0.0
