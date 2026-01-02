@@ -37,7 +37,6 @@ class Coordinator:
 
     def classify_query(self, user_query: str) -> str:
         """
-
         对用户查询类型进行分类
 
         参数:
