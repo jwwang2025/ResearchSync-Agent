@@ -184,31 +184,31 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                         # 移除事件引用（若未被移除）
                         active_approval_events.pop(task_id, None)
 
-                    # 审批已触发：把最新的审批状态写回工作流，让 graph 继续执行
+                    # 审批已触发：更新工作流状态，让 stream_interactive 继续执行
                     updated_plan_approved = task.get('plan_approved', False)
                     updated_feedback = task.get('user_feedback')
-                    # 使用与 stream_interactive 相同的 graph_config 更新图状态
-                    # Prepare graph config and attempt to read/update snapshot once.
+
+                    # 使用正确的graph配置更新状态
                     gcfg = task.get("graph_config", {"configurable": {"thread_id": "1"}})
                     try:
+                        # 获取当前快照并更新审批状态
                         snapshot = workflow.graph.get_state(gcfg)
                         current_snapshot_state = snapshot.values if hasattr(snapshot, "values") else snapshot
                         print(f"[run_research_workflow] Retrieved snapshot for task {task_id}: {repr(current_snapshot_state)}")
-                    except Exception as e:
-                        gcfg = {"configurable": {"thread_id": "1"}}
-                        current_snapshot_state = {}
-                        print(f"[run_research_workflow] Error getting graph snapshot for task {task_id}: {e}")
 
-                    if isinstance(current_snapshot_state, dict):
-                        current_snapshot_state['plan_approved'] = updated_plan_approved
-                        current_snapshot_state['user_feedback'] = updated_feedback
-                        try:
-                            workflow.graph.update_state(gcfg, current_snapshot_state)
-                            print(f"[run_research_workflow] Updated graph state for task {task_id} with plan_approved={updated_plan_approved}")
-                        except Exception as e:
-                            print(f"[run_research_workflow] Failed to update graph state for task {task_id}: {e}")
-                    else:
-                        print(f"[run_research_workflow] Current snapshot state is not a dict for task {task_id}: {repr(current_snapshot_state)}")
+                        if isinstance(current_snapshot_state, dict):
+                            current_snapshot_state['plan_approved'] = updated_plan_approved
+                            current_snapshot_state['user_feedback'] = updated_feedback
+                            try:
+                                workflow.graph.update_state(gcfg, current_snapshot_state)
+                                print(f"[run_research_workflow] Updated graph state for task {task_id} with plan_approved={updated_plan_approved}")
+                            except Exception as e:
+                                print(f"[run_research_workflow] Failed to update graph state for task {task_id}: {e}")
+                    except Exception as e:
+                        print(f"[run_research_workflow] Error getting/updating graph snapshot for task {task_id}: {e}")
+
+                    # 设置标志，表示审批已处理，stream_interactive 会继续执行
+                    approval_pending = False
 
                 # 发送进度更新
                 elif step == 'researching':

@@ -92,7 +92,7 @@ class WorkflowNodes:
         state['current_step'] = 'awaiting_approval'
 
         # 检查是否启动了自动批准功能
-        if state.get('auto_approve_plan', False):
+        if state.get('auto_approve', False):
             state['plan_approved'] = True
 
         # 在实际的实现中，此节点会暂停流程并等待用户输入

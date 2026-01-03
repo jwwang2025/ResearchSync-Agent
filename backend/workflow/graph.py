@@ -264,10 +264,36 @@ class ResearchWorkflow:
                             print(f"[stream_interactive] Failed to write approval result to graph: {e}")
                         approval_handled = True
 
-                    # 情况 C：既没有自动批准也没有回调，且未被外部批准 -> 停留在中断点，等待外部（例如 WebSocket）写回批准
+                    # 情况 C：既没有自动批准也没有回调，且未被外部批准 -> 等待外部更新
                     else:
-                        # 不标记 approval_handled，不继续内部流；让调用者有机会通过外部路径写入 plan_approved 并再次驱动生成器
-                        continue
+                        # 等待外部更新状态（通过 WebSocket 或其他方式）
+                        # 这里我们使用一个简化的方法：继续检查状态直到被外部更新
+                        max_wait_iterations = 300  # 最多等待 300 次迭代（约 30 秒，如果每次迭代间隔 100ms）
+                        wait_count = 0
+                        while wait_count < max_wait_iterations:
+                            # 重新获取状态，检查是否已被外部更新
+                            current_snapshot = self.graph.get_state(config)
+                            current_state = current_snapshot.values
+                            if isinstance(current_state, dict) and current_state.get('plan_approved', False) is not False:
+                                # 状态已被外部更新，标记为已处理
+                                approval_handled = True
+                                print(f"[stream_interactive] External approval detected for task")
+                                break
+                            wait_count += 1
+                            import time
+                            time.sleep(0.1)  # 等待 100ms 后再检查
+
+                        if not approval_handled:
+                            # 等待超时，未收到外部批准
+                            print(f"[stream_interactive] Timeout waiting for external approval")
+                            approval_handled = True  # 标记为已处理，避免无限循环
+                            # 设置为未批准状态
+                            current_state['plan_approved'] = False
+                            current_state['user_feedback'] = "审批超时"
+                            try:
+                                self.graph.update_state(config, current_state)
+                            except Exception as e:
+                                print(f"[stream_interactive] Failed to set timeout approval state: {e}")
 
                     if approval_handled:
                         # 从当前中断点继续执行工作流

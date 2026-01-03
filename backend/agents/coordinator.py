@@ -108,7 +108,7 @@ class Coordinator:
             'current_step': 'initializing',
             'needs_more_research': True,
             'user_feedback': None,
-            'auto_approve_plan': auto_approve,  # 将自动批准标识存入状态
+            'auto_approve': auto_approve,  # 将自动批准标识存入状态
             'simple_response': None,  # 用于存储对简单查询的直接响应
             'output_format': output_format  # 将输出格式存入状态
         }
