@@ -47,49 +47,36 @@ class MCPClient:
         返回:
             包含搜索结果的字典
         """
-        # 网络请求相关错误由 httpx.HTTPError 捕获并转换为友好返回值；
-        # 其他异常将继续向上抛出，便于定位问题。
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.server_url}/tools/{tool_name}",
-                    json={
-                        "query": query,
-                        **kwargs
-                    },
-                    headers=self.headers
-                )
-                response.raise_for_status()
-                data = response.json()
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.server_url}/tools/{tool_name}",
+                json={
+                    "query": query,
+                    **kwargs
+                },
+                headers=self.headers
+            )
+            response.raise_for_status()
+            data = response.json()
 
-                # Format results
-                results = []
-                for item in data.get('results', []):
-                    results.append({
-                        'title': item.get('title', ''),
-                        'url': item.get('url', ''),
-                        'snippet': item.get('snippet', item.get('content', '')),
-                        'relevance_score': item.get('score'),
-                        'metadata': item.get('metadata', {})
-                    })
+            # Format results
+            results = []
+            for item in data.get('results', []):
+                results.append({
+                    'title': item.get('title', ''),
+                    'url': item.get('url', ''),
+                    'snippet': item.get('snippet', item.get('content', '')),
+                    'relevance_score': item.get('score'),
+                    'metadata': item.get('metadata', {})
+                })
 
-                return {
-                    'query': query,
-                    'source': 'mcp',
-                    'tool': tool_name,
-                    'results': results,
-                    'timestamp': datetime.now().isoformat(),
-                    'total_results': len(results)
-                }
-
-        except httpx.HTTPError as e:
             return {
                 'query': query,
                 'source': 'mcp',
                 'tool': tool_name,
-                'results': [],
+                'results': results,
                 'timestamp': datetime.now().isoformat(),
-                'error': str(e)
+                'total_results': len(results)
             }
 
     async def list_tools(self) -> List[Dict]:
@@ -99,16 +86,13 @@ class MCPClient:
         返回:
             包含可用工具及其描述的列表
         """
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.server_url}/tools",
-                    headers=self.headers
-                )
-                response.raise_for_status()
-                return response.json().get('tools', [])
-        except httpx.HTTPError:
-            return []
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.server_url}/tools",
+                headers=self.headers
+            )
+            response.raise_for_status()
+            return response.json().get('tools', [])
 
     async def execute_tool(
         self,
@@ -125,17 +109,11 @@ class MCPClient:
         返回:
             工具执行结果
         """
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.server_url}/tools/{tool_name}",
-                    json=parameters,
-                    headers=self.headers
-                )
-                response.raise_for_status()
-                return response.json()
-        except httpx.HTTPError as e:
-            return {
-                'error': str(e),
-                'tool': tool_name
-            }
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.server_url}/tools/{tool_name}",
+                json=parameters,
+                headers=self.headers
+            )
+            response.raise_for_status()
+            return response.json()
