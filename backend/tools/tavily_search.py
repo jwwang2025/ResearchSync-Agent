@@ -48,48 +48,37 @@ class TavilySearch:
             - results: 搜索结果列表，每个结果包含标题、URL、摘要等信息
             - timestamp: 搜索时间戳（ISO格式）
             - total_results: 实际返回的结果数量
-            - error: 错误信息（仅当搜索失败时存在）
         """
-        try:
-            # 执行搜索
-            response = self.client.search(
-                query=query,
-                max_results=max_results,
-                search_depth=search_depth,
-                include_domains=include_domains,
-                exclude_domains=exclude_domains
-            )
+        # 执行搜索
+        response = self.client.search(
+            query=query,
+            max_results=max_results,
+            search_depth=search_depth,
+            include_domains=include_domains,
+            exclude_domains=exclude_domains
+        )
 
-            # 格式化结果
-            results = []
-            for item in response.get('results', []):
-                results.append({
-                    'title': item.get('title', ''),
-                    'url': item.get('url', ''),
-                    'snippet': item.get('content', ''),
-                    'relevance_score': item.get('score', 0.0),
-                    'metadata': {
-                        'published_date': item.get('published_date'),
-                        'raw_content': item.get('raw_content')
-                    }
-                })
+        # 格式化结果
+        results = []
+        for item in response.get('results', []):
+            results.append({
+                'title': item.get('title', ''),
+                'url': item.get('url', ''),
+                'snippet': item.get('content', ''),
+                'relevance_score': item.get('score', 0.0),
+                'metadata': {
+                    'published_date': item.get('published_date'),
+                    'raw_content': item.get('raw_content')
+                }
+            })
 
-            return {
-                'query': query,
-                'source': 'tavily',
-                'results': results,
-                'timestamp': datetime.now().isoformat(),
-                'total_results': len(results)
-            }
-
-        except Exception as e:
-            return {
-                'query': query,
-                'source': 'tavily',
-                'results': [],
-                'timestamp': datetime.now().isoformat(),
-                'error': str(e)
-            }
+        return {
+            'query': query,
+            'source': 'tavily',
+            'results': results,
+            'timestamp': datetime.now().isoformat(),
+            'total_results': len(results)
+        }
 
     def get_search_context(
         self,
@@ -106,11 +95,8 @@ class TavilySearch:
         返回:
             格式化的搜索上下文字符串（整合了关键信息的纯文本）
         """
-        try:
-            context = self.client.get_search_context(
-                query=query,
-                max_results=max_results
-            )
-            return context
-        except Exception as e:
-            return f"Error retrieving search context: {str(e)}"
+        context = self.client.get_search_context(
+            query=query,
+            max_results=max_results
+        )
+        return context

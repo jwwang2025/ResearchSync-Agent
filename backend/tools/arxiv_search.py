@@ -39,53 +39,42 @@ class ArxivSearch:
         返回:
             包含搜索结果的字典
         """
-        try:
-            # 创建搜索对象
-            search = arxiv.Search(
-                query=query,
-                max_results=max_results,
-                sort_by=sort_by,
-                sort_order=sort_order
-            )
+        # 创建搜索对象
+        search = arxiv.Search(
+            query=query,
+            max_results=max_results,
+            sort_by=sort_by,
+            sort_order=sort_order
+        )
 
-            # 执行检索
-            results = []
-            for paper in self.client.results(search):
-                results.append({
-                    'title': paper.title,
-                    'url': paper.entry_id,
-                    'snippet': paper.summary,
-                    'relevance_score': None,  # arXiv doesn't provide relevance scores
-                    'metadata': {
-                        'authors': [author.name for author in paper.authors],
-                        'published': paper.published.isoformat() if paper.published else None,
-                        'updated': paper.updated.isoformat() if paper.updated else None,
-                        'categories': paper.categories,
-                        'primary_category': paper.primary_category,
-                        'pdf_url': paper.pdf_url,
-                        'doi': paper.doi,
-                        'journal_ref': paper.journal_ref,
-                        'comment': paper.comment
-                    }
-                })
+        # 执行检索
+        results = []
+        for paper in self.client.results(search):
+            results.append({
+                'title': paper.title,
+                'url': paper.entry_id,
+                'snippet': paper.summary,
+                'relevance_score': None,  # arXiv doesn't provide relevance scores
+                'metadata': {
+                    'authors': [author.name for author in paper.authors],
+                    'published': paper.published.isoformat() if paper.published else None,
+                    'updated': paper.updated.isoformat() if paper.updated else None,
+                    'categories': paper.categories,
+                    'primary_category': paper.primary_category,
+                    'pdf_url': paper.pdf_url,
+                    'doi': paper.doi,
+                    'journal_ref': paper.journal_ref,
+                    'comment': paper.comment
+                }
+            })
 
-            return {
-                'query': query,
-                'source': 'arxiv',
-                'results': results,
-                'timestamp': datetime.now().isoformat(),
-                'total_results': len(results)
-            }
-
-        except Exception as e:
-            # 未知错误仍返回空结果并携带错误信息
-            return {
-                'query': query,
-                'source': 'arxiv',
-                'results': [],
-                'timestamp': datetime.now().isoformat(),
-                'error': str(e)
-            }
+        return {
+            'query': query,
+            'source': 'arxiv',
+            'results': results,
+            'timestamp': datetime.now().isoformat(),
+            'total_results': len(results)
+        }
 
     def get_paper_by_id(self, paper_id: str) -> Optional[Dict]:
         """
@@ -97,22 +86,21 @@ class ArxivSearch:
         返回:
             论文详细信息字典；若未找到对应论文则返回 None
         """
-        try:
-            search = arxiv.Search(id_list=[paper_id])
-            paper = next(self.client.results(search))
-
-            return {
-                'title': paper.title,
-                'url': paper.entry_id,
-                'summary': paper.summary,
-                'authors': [author.name for author in paper.authors],
-                'published': paper.published.isoformat() if paper.published else None,
-                'pdf_url': paper.pdf_url,
-                'categories': paper.categories
-            }
-        except (StopIteration, arxiv.exceptions.ArxivError):
-            # 未找到或 arXiv 客户端错误
+        search = arxiv.Search(id_list=[paper_id])
+        results = list(self.client.results(search))
+        if not results:
             return None
+        paper = results[0]
+
+        return {
+            'title': paper.title,
+            'url': paper.entry_id,
+            'summary': paper.summary,
+            'authors': [author.name for author in paper.authors],
+            'published': paper.published.isoformat() if paper.published else None,
+            'pdf_url': paper.pdf_url,
+            'categories': paper.categories
+        }
 
     def download_pdf(self, paper_id: str, dirpath: str = "./") -> Optional[str]:
         """
@@ -125,10 +113,10 @@ class ArxivSearch:
         返回:
             下载后的 PDF 文件路径；若下载失败则返回 None
         """
-        try:
-            search = arxiv.Search(id_list=[paper_id])
-            paper = next(self.client.results(search))
-            filepath = paper.download_pdf(dirpath=dirpath)
-            return filepath
-        except (StopIteration, arxiv.exceptions.ArxivError):
+        search = arxiv.Search(id_list=[paper_id])
+        results = list(self.client.results(search))
+        if not results:
             return None
+        paper = results[0]
+        filepath = paper.download_pdf(dirpath=dirpath)
+        return filepath
