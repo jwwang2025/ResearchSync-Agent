@@ -215,47 +215,30 @@ async def start_research(request: ResearchRequest):
     )
 
 
-@router.get("/research/{task_id}", response_model=TaskInfo)
-async def get_task_status(task_id: str):
-    """
-    获取任务状态。
-    """
-    if task_id not in tasks_store:
-        raise HTTPException(status_code=404, detail="任务不存在")
-
-    task = tasks_store[task_id]
-    return TaskInfo(
-        task_id=task["task_id"],
-        query=task["query"],
-        status=task["status"],
-        created_at=task["created_at"],
-        updated_at=task["updated_at"],
-        progress=task.get("progress")
-    )
-
-
-@router.delete("/research/{task_id}")
-async def cancel_task(task_id: str):
-    """
-    取消研究任务。
-    """
-    if task_id not in tasks_store:
-        raise HTTPException(status_code=404, detail="任务不存在")
-
-    task = tasks_store[task_id]
-    task["status"] = ResearchStatus.CANCELLED
-    task["updated_at"] = datetime.now()
-
-    return {"message": "任务已取消"}
-
-
 @router.get("/research/history")
 async def get_task_history(limit: int = 20, offset: int = 0):
     """
     获取任务历史列表。
     """
     tasks_list = list(tasks_store.values())
-    tasks_list.sort(key=lambda x: x["created_at"], reverse=True)
+
+    # 确保所有任务的created_at字段都是datetime对象以便排序
+    def get_created_at(task):
+        created_at = task["created_at"]
+        if isinstance(created_at, str):
+            # 如果是字符串，尝试解析为datetime
+            try:
+                return datetime.fromisoformat(created_at)
+            except (ValueError, TypeError):
+                # 如果解析失败，返回当前时间作为fallback
+                return datetime.now()
+        elif isinstance(created_at, datetime):
+            return created_at
+        else:
+            # 其他情况返回当前时间
+            return datetime.now()
+
+    tasks_list.sort(key=get_created_at, reverse=True)
 
     return {
         "total": len(tasks_list),
@@ -264,8 +247,8 @@ async def get_task_history(limit: int = 20, offset: int = 0):
                 task_id=t["task_id"],
                 query=t["query"],
                 status=t["status"],
-                created_at=t["created_at"],
-                updated_at=t["updated_at"],
+                created_at=t["created_at"] if isinstance(t["created_at"], datetime) else datetime.fromisoformat(t["created_at"]) if isinstance(t["created_at"], str) else datetime.now(),
+                updated_at=t["updated_at"] if isinstance(t["updated_at"], datetime) else datetime.fromisoformat(t["updated_at"]) if isinstance(t["updated_at"], str) else datetime.now(),
                 progress=t.get("progress")
             )
             for t in tasks_list[offset:offset + limit]
