@@ -162,6 +162,16 @@ venv.bak/
 !.vscode/extensions.json
 *.code-workspace
 
+# ============================================================================
+# 前端构建工具
+# ============================================================================
+# Vite
+.vite/
+frontend/.vite/
+node_modules/
+dist/
+build/
+
 # PyCharm
 .idea/
 .idea/*
@@ -270,3 +280,4 @@ mcp_config.json
 CLAUDE.md
 *.claude
 *.clinerules
+
