@@ -12,6 +12,7 @@ import Home from './pages/Home';
 import Tasks from './pages/Tasks';
 import History from './pages/History';
 import Settings from './pages/Settings';
+import KnowledgeBase from './pages/KnowledgeBase';
 
 const { Header, Content } = Layout;
 
@@ -28,6 +29,7 @@ function App() {
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/history" element={<History />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/knowledge" element={<KnowledgeBase />} />
             {/* 重定向其他路径到首页 */}
             <Route path="*" element={<Home />} />
           </Routes>

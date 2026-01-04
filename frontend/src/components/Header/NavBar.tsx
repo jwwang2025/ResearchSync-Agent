@@ -8,6 +8,7 @@ const { useBreakpoint } = Grid;
 const menuItems: MenuProps['items'] = [
   { key: 'home', label: <Link to="/">首页</Link> },
   { key: 'tasks', label: <Link to="/tasks">任务</Link> },
+  { key: 'knowledge', label: <Link to="/knowledge">知识库</Link> },
   { key: 'history', label: <Link to="/history">历史</Link> },
   { key: 'settings', label: <Link to="/settings">设置</Link> },
 ];

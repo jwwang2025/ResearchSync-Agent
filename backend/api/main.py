@@ -14,7 +14,7 @@ import uvicorn
 # 使用 redis.asyncio 作为异步客户端
 import redis.asyncio as aioredis
 
-from .routes import research, tasks, websocket, config
+from .routes import research, tasks, websocket, config, rag
 
 # 创建 FastAPI 应用 
 app = FastAPI(
@@ -94,6 +94,7 @@ app.include_router(research.router, prefix="/api/v1", tags=["research"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["tasks"])
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 app.include_router(config.router, prefix="/api/v1", tags=["config"])
+app.include_router(rag.router, prefix="/api/v1/rag", tags=["rag"])
 
 
 @app.get("/")

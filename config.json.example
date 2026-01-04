@@ -16,8 +16,24 @@
     "max_iterations": 5,
     "auto_approve_plan": false,
     "output_dir": "./outputs"
-  }
-  ,
+  },
+  "rag": {
+    "enabled": true,
+    "vector_store": {
+      "type": "chromadb",
+      "persist_directory": "./data/chroma_db",
+      "collection_name": "research_kb"
+    },
+    "embedding": {
+      "model": "all-MiniLM-L6-v2",
+      "device": "cpu"
+    },
+    "retrieval": {
+      "top_k": 5,
+      "similarity_threshold": 0.7,
+      "max_context_length": 4000
+    }
+  },
   "websocket": {
     "allowed_origins": [
       "http://localhost:5173",
