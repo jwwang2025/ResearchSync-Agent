@@ -66,39 +66,28 @@ class RAGRetriever:
         返回:
             包含检索结果和生成回答的字典
         """
-        try:
-            # 检索相关文档
-            retrieved_docs = self._retrieve_documents(query, collection_name, top_k)
+        # 检索相关文档
+        retrieved_docs = self._retrieve_documents(query, collection_name, top_k)
 
-            # 过滤低质量结果
-            filtered_docs = self._filter_by_similarity(retrieved_docs, self.similarity_threshold)
+        # 过滤低质量结果
+        filtered_docs = self._filter_by_similarity(retrieved_docs, self.similarity_threshold)
 
-            # 构建增强上下文
-            context = self._build_context(filtered_docs, context_docs)
+        # 构建增强上下文
+        context = self._build_context(filtered_docs, context_docs)
 
-            # 生成回答
-            prompt = custom_prompt or self._get_default_prompt(query, context)
-            response = self.llm.generate(prompt, temperature=temperature)
+        # 生成回答
+        prompt = custom_prompt or self._get_default_prompt(query, context)
+        response = self.llm.generate(prompt, temperature=temperature)
 
-            return {
-                'query': query,
-                'retrieved_documents': filtered_docs,
-                'generated_response': response,
-                'context_used': bool(filtered_docs or context_docs),
-                'collection_name': collection_name,
-                'total_retrieved': len(retrieved_docs),
-                'filtered_count': len(filtered_docs)
-            }
-
-        except Exception as e:
-            logger.error(f"RAG retrieval and generation failed: {str(e)}")
-            return {
-                'query': query,
-                'retrieved_documents': [],
-                'generated_response': f"检索增强生成过程中出现错误: {str(e)}",
-                'context_used': False,
-                'error': str(e)
-            }
+        return {
+            'query': query,
+            'retrieved_documents': filtered_docs,
+            'generated_response': response,
+            'context_used': bool(filtered_docs or context_docs),
+            'collection_name': collection_name,
+            'total_retrieved': len(retrieved_docs),
+            'filtered_count': len(filtered_docs)
+        }
 
     def retrieve_only(
         self,

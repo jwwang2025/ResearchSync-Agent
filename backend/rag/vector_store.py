@@ -137,21 +137,7 @@ class VectorStoreManager:
         """
         try:
             collection = self.client.get_collection(name=collection_name)
-
-            # 生成查询嵌入
-            query_embedding = self.embedding_model.encode([query]).tolist()[0]
-
-            # 执行搜索
-            results = collection.query(
-                query_embeddings=[query_embedding],
-                n_results=n_results,
-                where=where,
-                where_document=where_document
-            )
-
-            return results
-
-        except ValueError as e:
+        except ValueError:
             # 集合不存在
             return {
                 'documents': [[]],
@@ -159,8 +145,19 @@ class VectorStoreManager:
                 'distances': [[]],
                 'ids': [[]]
             }
-        except Exception as e:
-            raise Exception(f"Similarity search failed: {str(e)}")
+
+        # 生成查询嵌入
+        query_embedding = self.embedding_model.encode([query]).tolist()[0]
+
+        # 执行搜索
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=n_results,
+            where=where,
+            where_document=where_document
+        )
+
+        return results
 
     def delete_collection(self, collection_name: str) -> bool:
         """

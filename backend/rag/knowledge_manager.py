@@ -161,23 +161,14 @@ class KnowledgeManager:
 
         file_ext = Path(file_path).suffix.lower()
 
-        try:
-            if file_ext == '.pdf':
-                return self._load_pdf_file(file_path, collection_name, metadata)
-            elif file_ext in ['.txt', '.md']:
-                return self._load_text_file(file_path, collection_name, metadata)
-            elif file_ext in ['.html', '.htm']:
-                return self._load_html_file(file_path, collection_name, metadata)
-            else:
-                return self._load_generic_file(file_path, collection_name, metadata)
-
-        except Exception as e:
-            logger.error(f"Failed to load file {file_path}: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e),
-                'chunks_loaded': 0
-            }
+        if file_ext == '.pdf':
+            return self._load_pdf_file(file_path, collection_name, metadata)
+        elif file_ext in ['.txt', '.md']:
+            return self._load_text_file(file_path, collection_name, metadata)
+        elif file_ext in ['.html', '.htm']:
+            return self._load_html_file(file_path, collection_name, metadata)
+        else:
+            return self._load_generic_file(file_path, collection_name, metadata)
 
     def load_from_directory(
         self,
@@ -234,21 +225,17 @@ class KnowledgeManager:
         errors = []
 
         for file_path in all_files:
-            try:
-                result = self.load_from_file(
-                    file_path,
-                    collection_name,
-                    metadata={'source': 'directory', 'directory': directory_path}
-                )
+            result = self.load_from_file(
+                file_path,
+                collection_name,
+                metadata={'source': 'directory', 'directory': directory_path}
+            )
 
-                if result['success']:
-                    loaded_files += 1
-                    total_chunks += result['chunks_loaded']
-                else:
-                    errors.append(f"{file_path}: {result['error']}")
-
-            except Exception as e:
-                errors.append(f"{file_path}: {str(e)}")
+            if result['success']:
+                loaded_files += 1
+                total_chunks += result['chunks_loaded']
+            else:
+                errors.append(f"{file_path}: {result['error']}")
 
         return {
             'success': loaded_files > 0,
