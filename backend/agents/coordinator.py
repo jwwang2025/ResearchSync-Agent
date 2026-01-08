@@ -79,7 +79,7 @@ class Coordinator:
         response = self.llm.generate(prompt).strip()
         return response
 
-    def initialize_research(self, user_query: str, auto_approve: bool = False, output_format: str = "markdown") -> Dict[str, Any]:
+    def initialize_research(self, user_query: str, auto_approve: bool = False, output_format: str = "markdown", max_iterations: int = 5) -> Dict[str, Any]:
         """
         初始化一个新的研究任务
 
@@ -103,7 +103,7 @@ class Coordinator:
             'research_results': [],
             'current_task': None,
             'iteration_count': 0,
-            'max_iterations': 5,  # 默认最大迭代次数
+            'max_iterations': max_iterations,
             'final_report': None,
             'current_step': 'initializing',
             'needs_more_research': True,

@@ -367,3 +367,36 @@ async def websocket_research(websocket: WebSocket, task_id: str):
                         "approved": approved
                     })
 
+        elif message.get("type") == "modify_plan":
+            # 处理计划修改
+            modified_plan = message.get("modified_plan")
+
+            if task_id in tasks_store and modified_plan:
+                task = tasks_store[task_id]
+                workflow = task.get("workflow")
+
+                if workflow:
+                    # 更新任务状态中的计划
+                    task['research_plan'] = modified_plan
+                    task['updated_at'] = datetime.now()
+                    persist_task(task_id)
+
+                    # 更新工作流状态中的计划
+                    cfg_obj = task.get('graph_config', task.get('config'))
+                    if cfg_obj:
+                        snapshot = workflow.graph.get_state(cfg_obj)
+                        state_obj = snapshot.values if hasattr(snapshot, "values") else snapshot
+                        if isinstance(state_obj, dict):
+                            state_obj['research_plan'] = modified_plan
+                            state_obj['user_feedback'] = None  # 清除之前的反馈
+                            workflow.graph.update_state(cfg_obj, state_obj)
+                            print(f"[websocket_research] Successfully updated research plan")
+
+                    # 通知前端计划已更新
+                    await manager.send_message(task_id, {
+                        "type": "plan_updated",
+                        "task_id": task_id,
+                        "plan": modified_plan,
+                        "message": "研究计划已更新"
+                    })
+

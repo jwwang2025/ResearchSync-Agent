@@ -4,80 +4,20 @@
  * 首页组件
  */
 
-import React from 'react';
-import { Typography, Card, Button } from 'antd';
-import { ResearchForm } from '../components/Research/ResearchForm';
-import { ResearchProgress } from '../components/Research/ResearchProgress';
+import React, { useState } from 'react';
+import { Typography, Card, Divider } from 'antd';
+import { ResearchFlow } from '../components/Research/ResearchFlow';
 import { ResearchWSExample } from '../components/Research/ResearchWSExample';
-import { useWebSocket } from '../hooks/useWebSocket';
-import { researchApi } from '../services/api';
-import type { ResearchRequest, ProgressMessage, PlanReadyMessage, ReportReadyMessage } from '../types/research';
 
 const { Title } = Typography;
 
 const Home: React.FC = () => {
-  const [taskId, setTaskId] = React.useState<string | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [progress, setProgress] = React.useState<ProgressMessage | null>(null);
-  const [plan, setPlan] = React.useState<PlanReadyMessage | null>(null);
-  const [report, setReport] = React.useState<string | null>(null);
-  const [currentStep, setCurrentStep] = React.useState<string>('');
+  const [report, setReport] = useState<string | null>(null);
+  const [reportFormat, setReportFormat] = useState<string>('markdown');
 
-  const { connected, onMessage, approvePlan } = useWebSocket(taskId);
-
-  React.useEffect(() => {
-    if (!connected) return;
-
-    onMessage('status_update', (message) => {
-      setCurrentStep(message.step || '');
-    });
-
-    onMessage('progress', (message) => {
-      setProgress(message as ProgressMessage);
-      setCurrentStep(message.step || '');
-    });
-
-    onMessage('plan_ready', (message) => {
-      setPlan(message as PlanReadyMessage);
-      setCurrentStep('awaiting_approval');
-    });
-
-    onMessage('report_ready', (message) => {
-      const reportMessage = message as ReportReadyMessage;
-      setReport(reportMessage.report);
-      setCurrentStep('completed');
-    });
-
-    onMessage('error', (message) => {
-      console.error('研究错误:', message);
-      alert(`研究过程中出错: ${message.message}`);
-    });
-  }, [connected, onMessage]);
-
-  const handleSubmit = async (request: ResearchRequest) => {
-    try {
-      setLoading(true);
-      setProgress(null);
-      setPlan(null);
-      setReport(null);
-      setCurrentStep('');
-
-      const response = await researchApi.startResearch(request);
-      setTaskId(response.task_id);
-    } catch (error) {
-      console.error('启动研究失败:', error);
-      alert('启动研究失败，请检查后端服务是否运行');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleApprovePlan = (approved: boolean, feedback?: string) => {
-    approvePlan(approved, feedback);
-    if (approved) {
-      setPlan(null);
-      setCurrentStep('researching');
-    }
+  const handleReportGenerated = (generatedReport: string, format: string) => {
+    setReport(generatedReport);
+    setReportFormat(format);
   };
 
   return (
@@ -89,37 +29,39 @@ const Home: React.FC = () => {
           <div className="muted">提示：在表单中填写问题并开始研究，借助实时 WebSocket 获取进展。</div>
         </div>
         <Card className="hero-card main-card">
-          <ResearchForm onSubmit={handleSubmit} loading={loading} />
+          <ResearchFlow onReportGenerated={handleReportGenerated} />
         </Card>
       </div>
 
-      {taskId && (
+      {report && (
         <div className="section">
-          <ResearchProgress progress={progress || undefined} step={currentStep} />
-
-          {plan && (
-            <div className="section">
-              <Title level={5}>研究计划</Title>
-              <pre className="plan-pre">{JSON.stringify(plan.plan, null, 2)}</pre>
-              <div style={{ marginTop: 12 }}>
-                <Button type="primary" onClick={() => handleApprovePlan(true)}>批准</Button>
-                <Button style={{ marginLeft: 8 }} onClick={() => handleApprovePlan(false, '请修改计划')}>拒绝</Button>
-              </div>
+          <Title level={4}>📄 生成的研究报告</Title>
+          <Card>
+            <div style={{
+              maxHeight: '600px',
+              overflow: 'auto',
+              background: '#f9f9f9',
+              padding: '16px',
+              borderRadius: '8px'
+            }}>
+              <pre style={{
+                whiteSpace: 'pre-wrap',
+                margin: 0,
+                fontFamily: 'monospace',
+                fontSize: '14px',
+                lineHeight: '1.5'
+              }}>
+                {report}
+              </pre>
             </div>
-          )}
-
-          {report && (
-            <div className="section">
-              <Title level={5}>研究报告</Title>
-              <div className="plan-pre">
-                <pre style={{ whiteSpace: 'pre-wrap', margin:0 }}>{report}</pre>
-              </div>
-            </div>
-          )}
+          </Card>
         </div>
       )}
 
+      <Divider />
+
       <div className="section">
+        <Title level={4}>🔧 WebSocket 调试工具</Title>
         <ResearchWSExample />
       </div>
     </div>

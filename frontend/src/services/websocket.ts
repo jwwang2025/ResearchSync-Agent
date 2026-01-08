@@ -8,6 +8,7 @@ import type {
   WebSocketMessage,
   StatusUpdateMessage,
   PlanReadyMessage,
+  PlanUpdatedMessage,
   ProgressMessage,
   ReportReadyMessage,
   ErrorMessage,
@@ -100,6 +101,17 @@ export class WebSocketService {
       task_id: this.taskId,
       approved,
       feedback,
+    });
+  }
+
+  /**
+   * 修改研究计划
+   */
+  modifyPlan(modifiedPlan: any) {
+    this.send({
+      type: 'modify_plan',
+      task_id: this.taskId,
+      modified_plan: modifiedPlan,
     });
   }
 

@@ -24,15 +24,18 @@ export interface ResearchRequest {
   output_format?: "markdown" | "html";
 }
 
+export interface SubTask {
+  task_id: number;
+  description: string;
+  search_queries: string[];
+  sources: string[];
+  status: string;
+  priority?: number;
+}
+
 export interface ResearchPlan {
   research_goal: string;
-  sub_tasks: Array<{
-    task_id: number;
-    description: string;
-    search_queries: string[];
-    sources: string[];
-    priority?: number;
-  }>;
+  sub_tasks: SubTask[];
   completion_criteria: string;
   estimated_iterations: number;
 }
@@ -60,6 +63,12 @@ export interface StatusUpdateMessage extends WebSocketMessage {
 
 export interface PlanReadyMessage extends WebSocketMessage {
   type: "plan_ready";
+  plan: ResearchPlan;
+  message: string;
+}
+
+export interface PlanUpdatedMessage extends WebSocketMessage {
+  type: "plan_updated";
   plan: ResearchPlan;
   message: string;
 }

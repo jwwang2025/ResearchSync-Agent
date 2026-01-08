@@ -145,7 +145,7 @@ class ResearchWorkflow:
             最终的研究状态
         """
         # 初始化状态
-        initial_state = self.coordinator.initialize_research(query, auto_approve=auto_approve, output_format=output_format)
+        initial_state = self.coordinator.initialize_research(query, auto_approve=auto_approve, output_format=output_format, max_iterations=max_iterations)
 
         if max_iterations:
             initial_state['max_iterations'] = max_iterations
@@ -176,7 +176,7 @@ class ResearchWorkflow:
             执行过程中的状态更新数据
         """
         # 初始化状态
-        initial_state = self.coordinator.initialize_research(query, auto_approve=auto_approve, output_format=output_format)
+        initial_state = self.coordinator.initialize_research(query, auto_approve=auto_approve, output_format=output_format, max_iterations=max_iterations)
 
         if max_iterations:
             initial_state['max_iterations'] = max_iterations
@@ -209,7 +209,7 @@ class ResearchWorkflow:
             执行过程中的状态更新数据
         """
         # 初始化状态
-        initial_state = self.coordinator.initialize_research(query, auto_approve=auto_approve, output_format=output_format)
+        initial_state = self.coordinator.initialize_research(query, auto_approve=auto_approve, output_format=output_format, max_iterations=max_iterations)
 
         if max_iterations:
             initial_state['max_iterations'] = max_iterations
