@@ -135,16 +135,7 @@ class VectorStoreManager:
         返回:
             包含搜索结果的字典
         """
-        try:
-            collection = self.client.get_collection(name=collection_name)
-        except ValueError:
-            # 集合不存在
-            return {
-                'documents': [[]],
-                'metadatas': [[]],
-                'distances': [[]],
-                'ids': [[]]
-            }
+        collection = self.client.get_collection(name=collection_name)
 
         # 生成查询嵌入
         query_embedding = self.embedding_model.encode([query]).tolist()[0]
@@ -169,13 +160,10 @@ class VectorStoreManager:
         返回:
             删除是否成功
         """
-        try:
-            self.client.delete_collection(name=collection_name)
-            if collection_name in self._collections_cache:
-                del self._collections_cache[collection_name]
-            return True
-        except Exception:
-            return False
+        self.client.delete_collection(name=collection_name)
+        if collection_name in self._collections_cache:
+            del self._collections_cache[collection_name]
+        return True
 
     def list_collections(self) -> List[str]:
         """
@@ -197,23 +185,15 @@ class VectorStoreManager:
         返回:
             包含统计信息的字典
         """
-        try:
-            collection = self.client.get_collection(name=collection_name)
-            count = collection.count()
+        collection = self.client.get_collection(name=collection_name)
+        count = collection.count()
 
-            return {
-                'collection_name': collection_name,
-                'document_count': count,
-                'exists': True,
-                'status': 'active'
-            }
-        except Exception:
-            return {
-                'collection_name': collection_name,
-                'document_count': 0,
-                'exists': False,
-                'status': 'not_found'
-            }
+        return {
+            'collection_name': collection_name,
+            'document_count': count,
+            'exists': True,
+            'status': 'active'
+        }
 
     def _get_or_create_collection(self, collection_name: str):
         """
@@ -243,12 +223,9 @@ class VectorStoreManager:
         返回:
             清空是否成功
         """
-        try:
-            collection = self.client.get_collection(name=collection_name)
-            # 获取所有文档ID
-            all_ids = collection.get()['ids']
-            if all_ids:
-                collection.delete(ids=all_ids)
-            return True
-        except Exception:
-            return False
+        collection = self.client.get_collection(name=collection_name)
+        # 获取所有文档ID
+        all_ids = collection.get()['ids']
+        if all_ids:
+            collection.delete(ids=all_ids)
+        return True
