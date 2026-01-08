@@ -59,10 +59,7 @@ def load_all_tasks() -> Dict[str, Dict[str, Any]]:
     cur = conn.execute("SELECT id, data FROM tasks")
     for row in cur.fetchall():
         tid, data = row
-        try:
-            tasks[tid] = json.loads(data)
-        except json.JSONDecodeError:
-            tasks[tid] = {"task_id": tid, "status": "unknown", "request": {}}
+        tasks[tid] = json.loads(data)
     conn.close()
     return tasks
 
@@ -227,11 +224,7 @@ async def get_task_history(limit: int = 20, offset: int = 0):
         created_at = task["created_at"]
         if isinstance(created_at, str):
             # 如果是字符串，尝试解析为datetime
-            try:
-                return datetime.fromisoformat(created_at)
-            except (ValueError, TypeError):
-                # 如果解析失败，返回当前时间作为fallback
-                return datetime.now()
+            return datetime.fromisoformat(created_at)
         elif isinstance(created_at, datetime):
             return created_at
         else:
@@ -255,3 +248,26 @@ async def get_task_history(limit: int = 20, offset: int = 0):
         ]
     }
 
+
+@router.delete("/research/{task_id}/delete")
+async def delete_task(task_id: str):
+    """
+    删除指定的研究任务。
+
+    从内存存储和数据库中永久删除任务记录。
+    注意：此操作不可逆，请谨慎使用。
+    """
+    # 检查任务是否存在
+    if task_id not in tasks_store:
+        raise HTTPException(status_code=404, detail=f"任务 {task_id} 不存在")
+
+    # 从内存存储中删除
+    del tasks_store[task_id]
+
+    # 从数据库中删除
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    conn.commit()
+    conn.close()
+
+    return {"message": f"任务 {task_id} 已成功删除"}

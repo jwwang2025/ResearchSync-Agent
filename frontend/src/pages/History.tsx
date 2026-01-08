@@ -75,6 +75,17 @@ const History: React.FC = () => {
     setCurrentPage(page);
   };
 
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await researchApi.deleteTask(taskId);
+      message.success('任务已删除');
+      fetchTasks(currentPage);
+    } catch (error) {
+      console.error('删除任务失败:', error);
+      message.error('删除任务失败');
+    }
+  };
+
   if (loading && currentPage === 1) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 50 }}>
@@ -96,7 +107,23 @@ const History: React.FC = () => {
             <List
               dataSource={tasks}
               renderItem={(task) => (
-                <List.Item>
+                <List.Item
+                  actions={[
+                    <Button
+                      key="delete"
+                      type="text"
+                      danger
+                      size="small"
+                      onClick={() => {
+                        if (window.confirm('确定要删除此任务吗？此操作不可逆。')) {
+                          handleDeleteTask(task.task_id);
+                        }
+                      }}
+                    >
+                      删除
+                    </Button>
+                  ]}
+                >
                   <List.Item.Meta
                     avatar={getStatusIcon(task.status)}
                     title={

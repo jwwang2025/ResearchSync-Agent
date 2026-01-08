@@ -45,6 +45,14 @@ export const researchApi = {
   },
 
   /**
+   * 删除任务
+   */
+  async deleteTask(taskId: string) {
+    const response = await apiClient.delete(`/api/v1/research/${taskId}/delete`);
+    return response.data;
+  },
+
+  /**
    * 获取任务历史
    */
   async getTaskHistory(limit = 20, offset = 0) {

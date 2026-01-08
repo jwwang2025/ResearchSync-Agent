@@ -134,155 +134,137 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                 print(f"[run_research_workflow] Detected interrupt in workflow")
                 # 获取当前状态快照来检查是否需要审批
                 gcfg = task.get("graph_config", {"configurable": {"thread_id": "1"}})
-                try:
-                    snapshot = workflow.graph.get_state(gcfg)
-                    current_state = snapshot.values if hasattr(snapshot, "values") else snapshot
+                snapshot = workflow.graph.get_state(gcfg)
+                current_state = snapshot.values if hasattr(snapshot, "values") else snapshot
 
-                    if isinstance(current_state, dict) and current_state.get('research_plan') and not auto_approve:
-                        # 发送计划审批请求给前端
-                        approval_pending = True
-                        task["status"] = ResearchStatus.AWAITING_APPROVAL
+                if isinstance(current_state, dict) and current_state.get('research_plan') and not auto_approve:
+                    # 发送计划审批请求给前端
+                    approval_pending = True
+                    task["status"] = ResearchStatus.AWAITING_APPROVAL
+                task["updated_at"] = datetime.now()
+                persist_task(task_id)
+
+                await manager.send_message(task_id, {
+                    "type": "plan_ready",
+                    "task_id": task_id,
+                    "plan": current_state.get('research_plan'),
+                    "message": "研究计划已生成，等待审批"
+                })
+
+                # 等待审批（通过 WebSocket 消息）
+                evt = asyncio.Event()
+                active_approval_events[task_id] = evt
+                persist_task(task_id)
+                try:
+                    timeout = request_data.get("approval_timeout", 300)
+                    await asyncio.wait_for(evt.wait(), timeout=timeout)
+                except asyncio.TimeoutError:
+                    task["status"] = ResearchStatus.FAILED
                     task["updated_at"] = datetime.now()
                     persist_task(task_id)
-
                     await manager.send_message(task_id, {
-                        "type": "plan_ready",
+                        "type": "error",
                         "task_id": task_id,
-                        "plan": current_state.get('research_plan'),
-                        "message": "研究计划已生成，等待审批"
+                        "message": "审批超时，研究终止"
                     })
+                    active_approval_events.pop(task_id, None)
+                    return
+                finally:
+                    active_approval_events.pop(task_id, None)
 
-                    # 等待审批（通过 WebSocket 消息）
-                    evt = asyncio.Event()
-                    active_approval_events[task_id] = evt
-                    persist_task(task_id)
-                    try:
-                        timeout = request_data.get("approval_timeout", 300)
-                        await asyncio.wait_for(evt.wait(), timeout=timeout)
-                    except asyncio.TimeoutError:
+                    # 从中断点继续执行工作流
+                    print(f"[run_research_workflow] Continuing workflow from interrupt point")
+                    for continue_output in workflow.graph.stream(None, config=gcfg):
+                        # 处理继续执行的输出
+                        for continue_node_name, continue_state in continue_output.items():
+                            if isinstance(continue_state, tuple):
+                                if len(continue_state) >= 1:
+                                    continue_current_state = continue_state[0] if isinstance(continue_state[0], dict) else continue_state
+                                else:
+                                    continue
+                            else:
+                                continue_current_state = continue_state
+
+                            if not isinstance(continue_current_state, dict):
+                                continue
+
+                            continue_step = continue_current_state.get('current_step', 'unknown')
+
+                            # 发送继续执行的进度更新
+                            if continue_step == 'researching':
+                                task["status"] = ResearchStatus.RESEARCHING
+                                task["updated_at"] = datetime.now()
+                                persist_task(task_id)
+
+                                await manager.send_message(task_id, {
+                                    "type": "progress",
+                                    "task_id": task_id,
+                                    "step": continue_step,
+                                    "iteration": continue_current_state.get('iteration_count', 0),
+                                    "max_iterations": continue_current_state.get('max_iterations', max_iterations),
+                                    "current_task": continue_current_state.get('current_task', {}).get('description', ''),
+                                    "data": continue_current_state
+                                })
+
+                            elif continue_step == 'generating_report':
+                                task["status"] = ResearchStatus.GENERATING_REPORT
+                                task["updated_at"] = datetime.now()
+                                persist_task(task_id)
+
+                                await manager.send_message(task_id, {
+                                    "type": "status_update",
+                                    "task_id": task_id,
+                                    "step": continue_step,
+                                    "message": "正在生成最终报告..."
+                                })
+
+                    # 检查最终状态
+                    final_snapshot = workflow.graph.get_state(gcfg)
+                    final_state = final_snapshot.values if hasattr(final_snapshot, "values") else final_snapshot
+
+                    if isinstance(final_state, dict) and final_state.get('final_report'):
+                        task["status"] = ResearchStatus.COMPLETED
+                        task["updated_at"] = datetime.now()
+                        persist_task(task_id)
+
+                        cfg_obj = task.get('config')
+                        out_dir = "./outputs"
+                        if cfg_obj:
+                            out_dir = getattr(cfg_obj.workflow, "output_dir", out_dir)
+
+                        os.makedirs(out_dir, exist_ok=True)
+                        fmt = final_state.get('output_format', request_data.get("output_format", "markdown"))
+                        ext = "html" if fmt == "html" else "md"
+                        fname = f"research_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+                        fpath = os.path.join(out_dir, fname)
+                        with open(fpath, "w", encoding="utf-8") as f:
+                            f.write(final_state['final_report'])
+                        task['output_path'] = fpath
+                        persist_task(task_id)
+                        print(f"[run_research_workflow] Saved report to {fpath}")
+
+                        await manager.send_message(task_id, {
+                            "type": "report_ready",
+                            "task_id": task_id,
+                            "report": final_state['final_report'],
+                            "format": request_data.get("output_format", "markdown")
+                        })
+                    else:
                         task["status"] = ResearchStatus.FAILED
                         task["updated_at"] = datetime.now()
                         persist_task(task_id)
+
+                        debug_info = repr(final_state)
                         await manager.send_message(task_id, {
                             "type": "error",
                             "task_id": task_id,
-                            "message": "审批超时，研究终止"
+                            "message": "研究未成功完成",
+                            "debug": debug_info
                         })
-                        active_approval_events.pop(task_id, None)
-                        return
-                    finally:
-                        active_approval_events.pop(task_id, None)
+                        print(f"[run_research_workflow] Task {task_id} finished without final_report after continue. state={debug_info}")
 
-                        # 从中断点继续执行工作流
-                        print(f"[run_research_workflow] Continuing workflow from interrupt point")
-                        try:
-                            for continue_output in workflow.graph.stream(None, config=gcfg):
-                                # 处理继续执行的输出
-                                for continue_node_name, continue_state in continue_output.items():
-                                    if isinstance(continue_state, tuple):
-                                        if len(continue_state) >= 1:
-                                            continue_current_state = continue_state[0] if isinstance(continue_state[0], dict) else continue_state
-                                        else:
-                                            continue
-                                    else:
-                                        continue_current_state = continue_state
+                    return  # 成功完成，退出函数
 
-                                    if not isinstance(continue_current_state, dict):
-                                        continue
-
-                                    continue_step = continue_current_state.get('current_step', 'unknown')
-
-                                    # 发送继续执行的进度更新
-                                    if continue_step == 'researching':
-                                        task["status"] = ResearchStatus.RESEARCHING
-                                        task["updated_at"] = datetime.now()
-                                        persist_task(task_id)
-
-                                        await manager.send_message(task_id, {
-                                            "type": "progress",
-                                            "task_id": task_id,
-                                            "step": continue_step,
-                                            "iteration": continue_current_state.get('iteration_count', 0),
-                                            "max_iterations": max_iterations,
-                                            "current_task": continue_current_state.get('current_task', {}).get('description', ''),
-                                            "data": continue_current_state
-                                        })
-
-                                    elif continue_step == 'generating_report':
-                                        task["status"] = ResearchStatus.GENERATING_REPORT
-                                        task["updated_at"] = datetime.now()
-                                        persist_task(task_id)
-
-                                        await manager.send_message(task_id, {
-                                            "type": "status_update",
-                                            "task_id": task_id,
-                                            "step": continue_step,
-                                            "message": "正在生成最终报告..."
-                                        })
-
-                            # 检查最终状态
-                            final_snapshot = workflow.graph.get_state(gcfg)
-                            final_state = final_snapshot.values if hasattr(final_snapshot, "values") else final_snapshot
-
-                            if isinstance(final_state, dict) and final_state.get('final_report'):
-                                task["status"] = ResearchStatus.COMPLETED
-                                task["updated_at"] = datetime.now()
-                                persist_task(task_id)
-
-                                cfg_obj = task.get('config')
-                                out_dir = "./outputs"
-                                if cfg_obj:
-                                    out_dir = getattr(cfg_obj.workflow, "output_dir", out_dir)
-
-                                os.makedirs(out_dir, exist_ok=True)
-                                fmt = final_state.get('output_format', request_data.get("output_format", "markdown"))
-                                ext = "html" if fmt == "html" else "md"
-                                fname = f"research_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
-                                fpath = os.path.join(out_dir, fname)
-                                with open(fpath, "w", encoding="utf-8") as f:
-                                    f.write(final_state['final_report'])
-                                task['output_path'] = fpath
-                                persist_task(task_id)
-                                print(f"[run_research_workflow] Saved report to {fpath}")
-
-                                await manager.send_message(task_id, {
-                                    "type": "report_ready",
-                                    "task_id": task_id,
-                                    "report": final_state['final_report'],
-                                    "format": request_data.get("output_format", "markdown")
-                                })
-                            else:
-                                task["status"] = ResearchStatus.FAILED
-                                task["updated_at"] = datetime.now()
-                                persist_task(task_id)
-
-                                debug_info = repr(final_state)
-                                await manager.send_message(task_id, {
-                                    "type": "error",
-                                    "task_id": task_id,
-                                    "message": "研究未成功完成",
-                                    "debug": debug_info
-                                })
-                                print(f"[run_research_workflow] Task {task_id} finished without final_report after continue. state={debug_info}")
-
-                            return  # 成功完成，退出函数
-
-                        except Exception as e:
-                            print(f"[run_research_workflow] Error continuing workflow: {e}")
-                            task["status"] = ResearchStatus.FAILED
-                            task["updated_at"] = datetime.now()
-                            persist_task(task_id)
-
-                            await manager.send_message(task_id, {
-                                "type": "error",
-                                "task_id": task_id,
-                                "message": f"继续执行工作流时出错: {str(e)}"
-                            })
-                            return
-
-                except Exception as e:
-                    print(f"[run_research_workflow] Error handling interrupt: {e}")
-                    continue
 
             # 处理正常的节点输出
             for node_name, state in state_update.items():
@@ -311,7 +293,7 @@ async def run_research_workflow(task_id: str, request_data: Dict[str, Any]):
                         "task_id": task_id,
                         "step": step,
                         "iteration": current_state.get('iteration_count', 0),
-                        "max_iterations": max_iterations,
+                        "max_iterations": current_state.get('max_iterations', max_iterations),
                         "current_task": current_state.get('current_task', {}).get('description', ''),
                         "data": current_state
                     })
@@ -395,40 +377,23 @@ async def websocket_research(websocket: WebSocket, task_id: str):
                             # 尝试直接将审批结果写入 workflow 的状态，促使图继续执行
                             cfg_obj = task.get('graph_config', task.get('config'))
                             if cfg_obj:
-                                try:
-                                    snapshot = workflow.graph.get_state(cfg_obj)
-                                    state_obj = snapshot.values if hasattr(snapshot, "values") else snapshot
-                                except Exception as e:
-                                    state_obj = {}
-                                    print(f"[websocket_research] Error retrieving snapshot for task {task_id}: {e}")
+                                snapshot = workflow.graph.get_state(cfg_obj)
+                                state_obj = snapshot.values if hasattr(snapshot, "values") else snapshot
                                 if isinstance(state_obj, dict):
                                     state_obj['plan_approved'] = bool(approved)
                                     state_obj['user_feedback'] = feedback
-                                    try:
-                                        workflow.graph.update_state(cfg_obj, state_obj)
-                                        print(f"[websocket_research] Successfully updated workflow state: plan_approved={bool(approved)}")
-                                    except Exception as e:
-                                        print(f"[websocket_research] Failed to update workflow state for task {task_id}: {e}")
+                                    workflow.graph.update_state(cfg_obj, state_obj)
+                                    print(f"[websocket_research] Successfully updated workflow state: plan_approved={bool(approved)}")
 
                             # 发布 Redis 通知（如果配置了 REDIS_URL），以便在使用 RQ worker 时触发 worker
                             redis_url = os.getenv("REDIS_URL")
                             if redis_url:
-                                # 区分模块导入错误与发布错误，以便更精确地记录问题
-                                try:
-                                    import importlib
-                                    redis_mod = importlib.import_module("redis")
-                                    rcli = redis_mod.from_url(redis_url)
-                                except ImportError as e:
-                                    rcli = None
-                                    print(f"[websocket_research] Redis module not available: {e}")
-
-                                if rcli:
-                                    try:
-                                        channel = f"tasks:updates:{task_id}"
-                                        message = {"task_id": task_id, "payload": {"plan_approved": task.get('plan_approved', False), "user_feedback": task.get('user_feedback')}, "updated_at": datetime.now().isoformat()}
-                                        rcli.publish(channel, json.dumps(message, ensure_ascii=False, default=repr))
-                                    except Exception as e:
-                                        print(f"[websocket_research] Failed to publish redis notification for task {task_id}: {e}")
+                                import importlib
+                                redis_mod = importlib.import_module("redis")
+                                rcli = redis_mod.from_url(redis_url)
+                                channel = f"tasks:updates:{task_id}"
+                                message = {"task_id": task_id, "payload": {"plan_approved": task.get('plan_approved', False), "user_feedback": task.get('user_feedback')}, "updated_at": datetime.now().isoformat()}
+                                rcli.publish(channel, json.dumps(message, ensure_ascii=False, default=repr))
 
                             # 通知前端已接收审批
                             await manager.send_message(task_id, {
@@ -444,11 +409,5 @@ async def websocket_research(websocket: WebSocket, task_id: str):
                 })
 
     except WebSocketDisconnect:
-        manager.disconnect(task_id)
-    except Exception as e:
-        await manager.send_message(task_id, {
-            "type": "error",
-            "message": f"WebSocket 错误: {str(e)}"
-        })
         manager.disconnect(task_id)
 
