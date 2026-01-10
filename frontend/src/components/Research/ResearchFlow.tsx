@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, Space, message, Alert } from 'antd';
+import { message, Alert } from 'antd';
 import { ResearchForm } from './ResearchForm';
 import { ResearchProgress } from './ResearchProgress';
 import { ResearchPlanDisplay } from './ResearchPlanDisplay';
@@ -14,12 +14,19 @@ import type { ResearchRequest, ResearchPlan, WebSocketMessage, PlanReadyMessage,
 
 interface ResearchFlowProps {
   onReportGenerated?: (report: string, format: string) => void;
+  onStatusChange?: (status: { taskId: string | null; isConnected: boolean; currentStep: string }) => void;
+  onPlanReady?: (plan: ResearchPlan | null, currentStep: string) => void;
 }
 
-export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated }) => {
+export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated, onStatusChange, onPlanReady }) => {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>('');
+
+  // 通知父组件状态变化
+  React.useEffect(() => {
+    onStatusChange?.({ taskId, isConnected, currentStep });
+  }, [taskId, isConnected, currentStep, onStatusChange]);
   const [progress, setProgress] = useState<ProgressMessage | null>(null);
   const [researchPlan, setResearchPlan] = useState<ResearchPlan | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,12 +48,14 @@ export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated })
           setCurrentStep('awaiting_approval');
           setProgress(null);
           message.info('研究计划已生成，请审批');
+          onPlanReady?.(planMsg.plan, 'awaiting_approval');
           break;
 
         case 'plan_updated':
           const updatedMsg = msg as PlanUpdatedMessage;
           setResearchPlan(updatedMsg.plan);
           message.success('研究计划已更新');
+          onPlanReady?.(updatedMsg.plan, currentStep);
           break;
 
         case 'progress':
@@ -54,6 +63,7 @@ export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated })
           setProgress(progressMsg);
           setCurrentStep(progressMsg.step);
           setResearchPlan(null); // 研究开始后隐藏计划
+          onPlanReady?.(null, progressMsg.step);
           break;
 
         case 'report_ready':
@@ -62,6 +72,7 @@ export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated })
           setProgress(null);
           setResearchPlan(null);
           message.success('研究报告已生成');
+          onPlanReady?.(null, 'completed');
 
           if (onReportGenerated) {
             onReportGenerated(reportMsg.report, reportMsg.format);
@@ -99,7 +110,7 @@ export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated })
       setProgress(null);
 
       // 提交研究请求到后端API
-      const response = await fetch('/api/research/start', {
+      const response = await fetch('/api/v1/research/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -169,20 +180,21 @@ export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated })
     }
 
     // 如果正在等待计划审批，显示计划详情
-    if (researchPlan && currentStep === 'awaiting_approval') {
-      return (
-        <ResearchPlanDisplay
-          plan={researchPlan}
-          onApprove={handlePlanApprove}
-          onReject={handlePlanReject}
-          onModify={handlePlanModify}
-          loading={loading}
-        />
-      );
-    }
+    // 注意：现在研究计划在父组件中显示，这里只显示表单
+    // if (researchPlan && currentStep === 'awaiting_approval') {
+    //   return (
+    //     <ResearchPlanDisplay
+    //       plan={researchPlan}
+    //       onApprove={handlePlanApprove}
+    //       onReject={handlePlanReject}
+    //       onModify={handlePlanModify}
+    //       loading={loading}
+    //     />
+    //   );
+    // }
 
-    // 如果有进度信息，显示进度
-    if (progress || currentStep) {
+    // 如果有进度信息且正在进行研究任务，显示进度
+    if (progress && (currentStep === 'researching' || currentStep === 'synthesizing' || currentStep === 'completed')) {
       return (
         <ResearchProgress
           progress={progress || undefined}
@@ -191,30 +203,20 @@ export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated })
       );
     }
 
-    // 默认显示表单
+    // 默认显示表单，任务状态在表单上方显示
     return (
       <ResearchForm
         onSubmit={handleResearchSubmit}
         loading={loading}
+        disabled={!!taskId} // 任务进行中时禁用表单
       />
     );
   };
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
-      {/* 连接状态指示器 */}
-      {taskId && (
-        <Card size="small">
-          <Space>
-            <span>任务ID: {taskId}</span>
-            <span>连接状态: {isConnected ? '已连接' : '未连接'}</span>
-            <span>当前步骤: {currentStep || '准备中'}</span>
-          </Space>
-        </Card>
-      )}
-
+    <div style={{ width: '100%' }}>
       {/* 主内容区域 */}
       {renderCurrentState()}
-    </Space>
+    </div>
   );
 };

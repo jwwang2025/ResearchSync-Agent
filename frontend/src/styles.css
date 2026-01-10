@@ -100,6 +100,7 @@ body{
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--border-color);
   transition: all 0.3s ease;
+  position: relative;
 }
 .hero-card:hover{
   transform: translateY(-2px);
@@ -307,5 +308,107 @@ body{
 .ant-typography h1, .ant-typography h2, .ant-typography h3, .ant-typography h4, .ant-typography h5, .ant-typography h6{
   color: var(--text-primary);
   margin-bottom: 16px;
+}
+
+/* 研究表单优化 */
+.research-form-card {
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.research-form-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.research-form-section {
+  margin-bottom: 16px;
+}
+
+.research-form-section:last-child {
+  margin-bottom: 0;
+}
+
+/* 状态卡片样式 */
+.status-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  border-radius: var(--border-radius-lg);
+  transition: all 0.3s ease;
+}
+
+.status-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .hero {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .hero-card {
+    padding: 20px;
+  }
+
+  .app-content {
+    padding: 16px;
+  }
+
+  .research-form-card {
+    margin-bottom: 16px;
+  }
+}
+
+/* 加载状态优化 */
+.ant-btn-loading {
+  opacity: 0.8;
+}
+
+/* 表单项间距优化 */
+.ant-form-item {
+  margin-bottom: 16px;
+}
+
+.ant-form-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 输入框优化 */
+.ant-input, .ant-input-affix-wrapper, .ant-select-selector, .ant-input-number {
+  transition: all 0.3s ease;
+}
+
+.ant-input:hover, .ant-input-affix-wrapper:hover, .ant-select-selector:hover, .ant-input-number:hover {
+  border-color: var(--accent-primary);
+}
+
+/* 卡片内容间距 */
+.ant-card-body {
+  padding: 20px;
+}
+
+/* 研究报告显示优化 */
+.report-container {
+  background: #f8f9fa;
+  border-radius: var(--border-radius);
+  padding: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.report-content {
+  background: white;
+  border-radius: var(--border-radius);
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 600px;
+  overflow-y: auto;
 }
 

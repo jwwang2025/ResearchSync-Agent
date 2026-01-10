@@ -5,17 +5,19 @@
  */
 
 import React, { useState } from 'react';
-import { Form, Input, Button, Select, Switch, InputNumber, Space } from 'antd';
+import { Form, Input, Button, Select, Switch, InputNumber, Space, Card, Divider, Typography } from 'antd';
 import type { ResearchRequest } from '../../types/research';
 
 const { TextArea } = Input;
+const { Title } = Typography;
 
 interface ResearchFormProps {
   onSubmit: (request: ResearchRequest) => void;
   loading?: boolean;
+  disabled?: boolean;
 }
 
-export const ResearchForm: React.FC<ResearchFormProps> = ({ onSubmit, loading = false }) => {
+export const ResearchForm: React.FC<ResearchFormProps> = ({ onSubmit, loading = false, disabled = false }) => {
   const [form] = Form.useForm();
   const [llmProvider, setLlmProvider] = useState<string | undefined>();
 
@@ -39,88 +41,126 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({ onSubmit, loading = 
   };
 
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      onFinish={handleSubmit}
-      initialValues={{
-        max_iterations: 5,
-        auto_approve: false,
-        output_format: 'markdown',
-      }}
-    >
-      <Form.Item
-        name="query"
-        label="研究问题"
-        rules={[{ required: true, message: '请输入研究问题' }]}
+    <div style={{ maxWidth: '100%' }}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmit}
+        initialValues={{
+          max_iterations: 5,
+          auto_approve: false,
+          output_format: 'markdown',
+        }}
       >
-        <TextArea
-          rows={4}
-          placeholder="请输入您想要研究的问题或主题..."
-        />
-      </Form.Item>
+        {/* 主要研究问题 */}
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Form.Item
+            name="query"
+            label={<Title level={5} style={{ margin: 0, color: '#238e68' }}>研究问题</Title>}
+            rules={[{ required: true, message: '请输入研究问题' }]}
+          >
+            <TextArea
+              rows={4}
+              placeholder="请详细描述您想要研究的问题或主题..."
+              style={{ fontSize: '14px' }}
+            />
+          </Form.Item>
+        </Card>
 
-      <Form.Item
-        name="llm_provider"
-        label="LLM 提供商"
-      >
-        <Select
-          placeholder="选择 LLM 提供商（可选）"
-          allowClear
-          onChange={setLlmProvider}
-        >
-          <Select.Option value="openai">OpenAI</Select.Option>
-          <Select.Option value="claude">Claude</Select.Option>
-          <Select.Option value="gemini">Gemini</Select.Option>
-          <Select.Option value="deepseek">DeepSeek</Select.Option>
-        </Select>
-      </Form.Item>
+        {/* LLM 配置 */}
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Title level={5} style={{ margin: '0 0 12px 0', color: '#238e68' }}>LLM 配置</Title>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Form.Item
+              name="llm_provider"
+              label="LLM 提供商"
+            >
+              <Select
+                placeholder="选择 LLM 提供商（可选）"
+                allowClear
+                onChange={setLlmProvider}
+                style={{ width: '100%' }}
+              >
+                <Select.Option value="openai">OpenAI</Select.Option>
+                <Select.Option value="claude">Claude</Select.Option>
+                <Select.Option value="gemini">Gemini</Select.Option>
+                <Select.Option value="deepseek">DeepSeek</Select.Option>
+              </Select>
+            </Form.Item>
 
-      {llmProvider && (
-        <Form.Item
-          name="llm_model"
-          label="LLM 模型"
-        >
-          <Select placeholder="选择模型（可选）" allowClear>
-            {llmModels[llmProvider]?.map((model) => (
-              <Select.Option key={model} value={model}>
-                {model}
-              </Select.Option>
-            ))}
-          </Select>
+            {llmProvider && (
+              <Form.Item
+                name="llm_model"
+                label="LLM 模型"
+              >
+                <Select placeholder="选择模型（可选）" allowClear style={{ width: '100%' }}>
+                  {llmModels[llmProvider]?.map((model) => (
+                    <Select.Option key={model} value={model}>
+                      {model}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            )}
+          </Space>
+        </Card>
+
+        {/* 研究配置 */}
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Title level={5} style={{ margin: '0 0 16px 0', color: '#238e68' }}>研究配置</Title>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Form.Item
+              name="max_iterations"
+              label="最大迭代次数"
+            >
+              <InputNumber
+                min={1}
+                max={20}
+                style={{ width: '100%' }}
+                placeholder="5"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="output_format"
+              label="输出格式"
+            >
+              <Select style={{ width: '100%' }}>
+                <Select.Option value="markdown">Markdown</Select.Option>
+                <Select.Option value="html">HTML</Select.Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              name="auto_approve"
+              valuePropName="checked"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Switch checkedChildren="自动批准" unCheckedChildren="手动审批" />
+                <span style={{ fontSize: '14px', color: '#666' }}>
+                  自动批准研究计划，无需手动确认
+                </span>
+              </div>
+            </Form.Item>
+          </Space>
+        </Card>
+
+        {/* 提交按钮 */}
+        <Form.Item>
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={loading}
+            disabled={disabled}
+            block
+            size="large"
+            style={{ height: '48px', fontSize: '16px', fontWeight: '500' }}
+          >
+            {disabled ? '任务进行中...' : '开始研究'}
+          </Button>
         </Form.Item>
-      )}
-
-      <Form.Item
-        name="max_iterations"
-        label="最大迭代次数"
-      >
-        <InputNumber min={1} max={20} style={{ width: '100%' }} />
-      </Form.Item>
-
-      <Form.Item
-        name="output_format"
-        label="输出格式"
-      >
-        <Select>
-          <Select.Option value="markdown">Markdown</Select.Option>
-          <Select.Option value="html">HTML</Select.Option>
-        </Select>
-      </Form.Item>
-
-      <Form.Item
-        name="auto_approve"
-        valuePropName="checked"
-      >
-        <Switch checkedChildren="自动批准计划" unCheckedChildren="手动审批计划" />
-      </Form.Item>
-
-      <Form.Item>
-        <Button type="primary" htmlType="submit" loading={loading} block>
-          开始研究
-        </Button>
-      </Form.Item>
-    </Form>
+      </Form>
+    </div>
   );
 };
 
