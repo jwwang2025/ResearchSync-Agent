@@ -96,12 +96,14 @@ export class WebSocketService {
    * 审批研究计划
    */
   approvePlan(approved: boolean, feedback?: string) {
-    this.send({
+    const message = {
       type: 'approve_plan',
       task_id: this.taskId,
       approved,
       feedback,
-    });
+    };
+    console.log('Sending approve_plan message:', message);
+    this.send(message);
   }
 
   /**

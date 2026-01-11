@@ -16,9 +16,10 @@ interface ResearchFlowProps {
   onReportGenerated?: (report: string, format: string) => void;
   onStatusChange?: (status: { taskId: string | null; isConnected: boolean; currentStep: string }) => void;
   onPlanReady?: (plan: ResearchPlan | null, currentStep: string) => void;
+  onProgressUpdate?: (progress: any) => void;
 }
 
-export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated, onStatusChange, onPlanReady }) => {
+export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated, onStatusChange, onPlanReady, onProgressUpdate }) => {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>('');
@@ -64,6 +65,7 @@ export const ResearchFlow: React.FC<ResearchFlowProps> = ({ onReportGenerated, o
           setCurrentStep(progressMsg.step);
           setResearchPlan(null); // 研究开始后隐藏计划
           onPlanReady?.(null, progressMsg.step);
+          onProgressUpdate?.(progressMsg);
           break;
 
         case 'report_ready':
